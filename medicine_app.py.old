@@ -1,140 +1,169 @@
 #!/usr/bin/python3
-"""
-Medicine Tracker App - Refactored for SQLite
-E-ink display app for tracking medicine schedule and adherence
-"""
-
-import sys, os, time
-from datetime import datetime, date
-import logging, threading
-
-# Add library paths
+import sys, os, time, json
+from datetime import datetime
 picdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/pic/2in13')
 fontdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/pic')
 libdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/lib')
 sys.path.append(libdir)
 
-# Add project root to path for local imports
-project_root = os.path.dirname(os.path.realpath(__file__))
-sys.path.insert(0, project_root)
-
 from TP_lib import gt1151, epd2in13_V3
 from PIL import Image, ImageDraw, ImageFont
+import logging, threading
 
-# Import our new database and utilities
-from db.medicine_db import MedicineDatabase
-from shared.app_utils import ConfigLoader, get_font, install_signal_handlers
-
-# Setup logging
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Load configuration
-config = ConfigLoader()
-medicine_config = config.get_section('medicine')
-UPDATE_INTERVAL = medicine_config.get('update_interval', 60)
-REMINDER_WINDOW = medicine_config.get('reminder_window', 30)
+CONFIG_FILE = "/home/pizero2w/pizero_apps/config.json"
+MEDICINE_DATA_FILE = "/home/pizero2w/pizero_apps/medicine_data.json"
 
-# Initialize database
-db = MedicineDatabase()
+try:
+    with open(CONFIG_FILE, "r") as f:
+        CONFIG = json.load(f)
+    MEDICINE_CONFIG = CONFIG.get("medicine", {})
+except:
+    MEDICINE_CONFIG = {}
 
-# Font cache (using shared utility)
-FONT_DIR = fontdir
+UPDATE_INTERVAL = MEDICINE_CONFIG.get("update_interval", 60)
+REMINDER_WINDOW = MEDICINE_CONFIG.get("reminder_window", 30)
 
-
-def get_pending_medicines():
-    """Get list of medicines that are due now using database"""
+def load_medicine_data():
+    """Load medicine data from JSON file"""
     try:
-        pending = db.get_pending_medicines(check_date=date.today(), check_time=datetime.now())
-        return pending
-    except Exception as e:
-        logger.error(f"Failed to get pending medicines: {e}")
-        return []
+        with open(MEDICINE_DATA_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return {"medicines": [], "tracking": {}, "time_windows": {}}
 
-
-def mark_medicines_taken(medicines):
-    """Mark a list of medicines as taken using database"""
+def save_medicine_data(data):
+    """Save medicine data to JSON file"""
     try:
-        results = []
-        for med in medicines:
-            result = db.mark_medicine_taken(
-                medicine_id=med['id'],
-                time_window=med.get('time_window'),
-                taken_date=date.today(),
-                timestamp=datetime.now()
-            )
-            results.append(result)
+        # Add last_updated timestamp
+        from datetime import datetime
+        data["last_updated"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
-            # Log low stock warnings
-            if result.get('low_stock'):
-                logger.warning(f"Low stock alert: {med['name']} - {result['pills_remaining']} pills remaining")
-
+        with open(MEDICINE_DATA_FILE, "w") as f:
+            json.dump(data, f, indent=2)
         return True
     except Exception as e:
-        logger.error(f"Failed to mark medicines taken: {e}")
+        logging.error(f"Failed to save medicine data: {e}")
         return False
 
+def get_data_timestamp(data):
+    """Get the last updated timestamp from data"""
+    return data.get("last_updated", "1970-01-01T00:00:00")
 
-def get_today_stats():
-    """Get today's medicine statistics from database"""
+def is_in_time_window(window_start, window_end, current_time, reminder_window_minutes=30):
+    """Check if current time is within the medicine time window (with reminder buffer)"""
     try:
-        taken, total = db.get_today_stats(check_date=date.today())
-        return taken, total
-    except Exception as e:
-        logger.error(f"Failed to get today stats: {e}")
-        return 0, 0
+        # Parse times
+        start_h, start_m = map(int, window_start.split(":"))
+        end_h, end_m = map(int, window_end.split(":"))
+        curr_h, curr_m = current_time.hour, current_time.minute
 
+        # Convert to minutes since midnight
+        start_mins = start_h * 60 + start_m - reminder_window_minutes
+        end_mins = end_h * 60 + end_m + reminder_window_minutes
+        curr_mins = curr_h * 60 + curr_m
 
-def get_all_medicines_for_today():
-    """Get all active medicines scheduled for today"""
-    try:
-        all_medicines = db.get_all_medicines(include_inactive=False)
-        today_day = datetime.now().strftime("%a").lower()
+        return start_mins <= curr_mins <= end_mins
+    except:
+        return False
 
-        # Filter for today
-        today_medicines = [m for m in all_medicines if today_day in m.get('days', [])]
-        return today_medicines
-    except Exception as e:
-        logger.error(f"Failed to get medicines: {e}")
-        return []
+def get_current_day():
+    """Get current day as 3-letter lowercase (mon, tue, etc.)"""
+    return datetime.now().strftime("%a").lower()
 
+def get_pending_medicines(data):
+    """Get list of medicines that are due now"""
+    now = datetime.now()
+    today = now.strftime("%Y-%m-%d")
+    current_day = get_current_day()
 
-def get_tracking_for_today():
-    """Get tracking data for today"""
-    try:
-        today_str = date.today().strftime('%Y-%m-%d')
-        tracking = db.get_tracking_history(
-            start_date=date.today(),
-            end_date=date.today()
-        )
+    pending = []
 
-        # Convert to dict keyed by medicine_id_timewindow
-        tracking_dict = {}
-        for entry in tracking:
-            key = f"{entry['medicine_id']}_{entry['time_window']}"
-            tracking_dict[key] = entry
+    for med in data.get("medicines", []):
+        if not med.get("active", True):
+            continue
 
-        return tracking_dict
-    except Exception as e:
-        logger.error(f"Failed to get tracking: {e}")
-        return {}
+        # Check if today is a scheduled day
+        if current_day not in med.get("days", []):
+            continue
 
+        # Check if in time window
+        window_start = med.get("window_start", "00:00")
+        window_end = med.get("window_end", "23:59")
 
-def get_data_timestamp():
-    """Get the last updated timestamp from database"""
-    try:
-        return db.get_last_updated()
-    except Exception as e:
-        logger.error(f"Failed to get timestamp: {e}")
-        return datetime.now().isoformat()
+        if not is_in_time_window(window_start, window_end, now, REMINDER_WINDOW):
+            continue
 
+        # Check if already taken today
+        tracking_key = f"{med['id']}_{med['time_window']}"
+        if today not in data.get("tracking", {}):
+            data["tracking"][today] = {}
+
+        if tracking_key in data["tracking"][today]:
+            if data["tracking"][today][tracking_key].get("taken", False):
+                continue
+
+        pending.append(med)
+
+    return pending
+
+def mark_medicines_taken(data, medicines):
+    """Mark a list of medicines as taken and decrement pill count"""
+    now = datetime.now()
+    today = now.strftime("%Y-%m-%d")
+    timestamp = now.strftime("%Y-%m-%dT%H:%M:%S")
+
+    if today not in data["tracking"]:
+        data["tracking"][today] = {}
+
+    for med in medicines:
+        tracking_key = f"{med['id']}_{med['time_window']}"
+        data["tracking"][today][tracking_key] = {
+            "taken": True,
+            "timestamp": timestamp
+        }
+
+        # Decrement pill count
+        for i, stored_med in enumerate(data.get("medicines", [])):
+            if stored_med["id"] == med["id"]:
+                pills_per_dose = stored_med.get("pills_per_dose", 1)
+                current_count = stored_med.get("pills_remaining", 0)
+                data["medicines"][i]["pills_remaining"] = max(0, current_count - pills_per_dose)
+                break
+
+    return save_medicine_data(data)
+
+def get_today_stats(data):
+    """Get today's medicine statistics"""
+    today = datetime.now().strftime("%Y-%m-%d")
+    current_day = get_current_day()
+
+    total = 0
+    taken = 0
+
+    for med in data.get("medicines", []):
+        if not med.get("active", True):
+            continue
+        if current_day not in med.get("days", []):
+            continue
+
+        total += 1
+
+        tracking_key = f"{med['id']}_{med['time_window']}"
+        if today in data.get("tracking", {}):
+            if tracking_key in data["tracking"][today]:
+                if data["tracking"][today][tracking_key].get("taken", False):
+                    taken += 1
+
+    return taken, total
 
 def draw_pill_icon(draw, x, y, size=10):
     """Draw a simple pill icon"""
     # Capsule shape
     draw.ellipse([x, y, x+size, y+size], outline=0, width=2)
     draw.line([x+size//4, y, x+size//4, y+size], fill=0, width=1)
-
 
 def draw_food_icon(draw, x, y, size=8):
     """Draw a simple fork/knife icon for 'with food'"""
@@ -143,16 +172,15 @@ def draw_food_icon(draw, x, y, size=8):
     draw.line([x-1, y, x-1, y+size//2], fill=0, width=1)
     draw.line([x+1, y, x+1, y+size//2], fill=0, width=1)
 
-
 def draw_current_reminder(pending_meds, current_index=0):
     """Draw current medicine reminder (rotate through if multiple)"""
     img = Image.new("1", (250, 122), 255)
     draw = ImageDraw.Draw(img)
 
-    f_title = get_font('Roboto-Bold', 12)
-    f_med = get_font('Roboto-Bold', 16)
-    f_dose = get_font('Roboto-Regular', 12)
-    f_small = get_font('Roboto-Regular', 10)
+    f_title = ImageFont.truetype(os.path.join(fontdir, "Roboto-Bold.ttf"), 12)
+    f_med = ImageFont.truetype(os.path.join(fontdir, "Roboto-Bold.ttf"), 16)
+    f_dose = ImageFont.truetype(os.path.join(fontdir, "Roboto-Regular.ttf"), 12)
+    f_small = ImageFont.truetype(os.path.join(fontdir, "Roboto-Regular.ttf"), 10)
 
     # Title bar
     now = datetime.now().strftime("%H:%M")
@@ -218,30 +246,30 @@ def draw_current_reminder(pending_meds, current_index=0):
 
     return img
 
-
-def draw_schedule_view():
+def draw_schedule_view(data):
     """Draw today's full schedule"""
     img = Image.new("1", (250, 122), 255)
     draw = ImageDraw.Draw(img)
 
-    f_title = get_font('Roboto-Bold', 12)
-    f_item = get_font('Roboto-Regular', 11)
-    f_small = get_font('Roboto-Regular', 9)
+    f_title = ImageFont.truetype(os.path.join(fontdir, "Roboto-Bold.ttf"), 12)
+    f_item = ImageFont.truetype(os.path.join(fontdir, "Roboto-Regular.ttf"), 11)
+    f_small = ImageFont.truetype(os.path.join(fontdir, "Roboto-Regular.ttf"), 9)
 
     today = datetime.now().strftime("%b %d")
-    current_day = datetime.now().strftime("%a").lower()
+    current_day = get_current_day()
 
     # Title
     draw.text((5, 2), f"Today's Medicines - {today}", font=f_title, fill=0)
     draw.line([(0, 16), (250, 16)], fill=0, width=1)
 
-    # Get medicines and tracking for today
-    medicines = get_all_medicines_for_today()
-    tracking = get_tracking_for_today()
-
     # Group medicines by time window
     windows = {}
-    for med in medicines:
+    for med in data.get("medicines", []):
+        if not med.get("active", True):
+            continue
+        if current_day not in med.get("days", []):
+            continue
+
         window = med.get("time_window", "morning")
         if window not in windows:
             windows[window] = []
@@ -249,6 +277,7 @@ def draw_schedule_view():
 
     # Draw schedule
     y_pos = 20
+    today_str = datetime.now().strftime("%Y-%m-%d")
 
     for window in ["morning", "afternoon", "evening", "night"]:
         if window not in windows:
@@ -264,7 +293,10 @@ def draw_schedule_view():
         for med in meds:
             # Check if taken
             tracking_key = f"{med['id']}_{window}"
-            taken = tracking_key in tracking and tracking[tracking_key].get('taken', False)
+            taken = False
+            if today_str in data.get("tracking", {}):
+                if tracking_key in data["tracking"][today_str]:
+                    taken = data["tracking"][today_str][tracking_key].get("taken", False)
 
             # Checkbox
             checkbox = "[✓]" if taken else "[ ]"
@@ -273,7 +305,7 @@ def draw_schedule_view():
             y_pos += 11
 
     # Stats at bottom
-    taken, total = get_today_stats()
+    taken, total = get_today_stats(data)
     if total > 0:
         percentage = int((taken / total) * 100)
         draw.line([(0, 95), (250, 95)], fill=0, width=1)
@@ -283,15 +315,14 @@ def draw_schedule_view():
 
     return img
 
-
 def draw_confirmation_screen(medicines_taken, count):
     """Draw confirmation screen after marking medicines taken"""
     img = Image.new("1", (250, 122), 255)
     draw = ImageDraw.Draw(img)
 
-    f_big = get_font('Roboto-Bold', 20)
-    f_medium = get_font('Roboto-Regular', 12)
-    f_small = get_font('Roboto-Regular', 10)
+    f_big = ImageFont.truetype(os.path.join(fontdir, "Roboto-Bold.ttf"), 20)
+    f_medium = ImageFont.truetype(os.path.join(fontdir, "Roboto-Regular.ttf"), 12)
+    f_small = ImageFont.truetype(os.path.join(fontdir, "Roboto-Regular.ttf"), 10)
 
     # Big checkmark
     draw.text((90, 15), "✓", font=f_big, fill=0)
@@ -314,7 +345,6 @@ def draw_confirmation_screen(medicines_taken, count):
     draw.text((80, 105), f"Taken at {now}", font=f_small, fill=0)
 
     return img
-
 
 def run_medicine_app(epd, gt_dev, gt_old, gt):
     """Medicine tracking app with button controls"""
@@ -344,37 +374,39 @@ def run_medicine_app(epd, gt_dev, gt_old, gt):
     DOUBLE_CLICK_TIME = 0.5  # 500ms for double click
 
     # Initial display
-    last_known_timestamp = get_data_timestamp()
-    pending = get_pending_medicines()
+    data = load_medicine_data()
+    last_known_timestamp = get_data_timestamp(data)
+    pending = get_pending_medicines(data)
 
     if pending:
         image = draw_current_reminder(pending, rotation_index)
     else:
-        image = draw_schedule_view()
+        image = draw_schedule_view(data)
         view_mode = "schedule"
 
     epd.displayPartial(epd.getbuffer(image))
     last_update = time.time()
 
-    logger.info("Medicine app started")
+    logging.info("Medicine app started")
 
     while True:
         current_time = time.time()
 
         # Check for external data changes (push refresh)
         if current_time - last_timestamp_check > TIMESTAMP_CHECK_INTERVAL:
-            current_timestamp = get_data_timestamp()
+            data = load_medicine_data()
+            current_timestamp = get_data_timestamp(data)
 
             if current_timestamp != last_known_timestamp:
-                logger.info(f"Data changed externally (timestamp: {current_timestamp}), refreshing display")
+                logging.info(f"Data changed externally (timestamp: {current_timestamp}), refreshing display")
                 last_known_timestamp = current_timestamp
-                pending = get_pending_medicines()
+                pending = get_pending_medicines(data)
                 rotation_index = 0
 
                 if pending and view_mode == "reminder":
                     image = draw_current_reminder(pending, rotation_index)
                 else:
-                    image = draw_schedule_view()
+                    image = draw_schedule_view(data)
                     if not pending:
                         view_mode = "schedule"
 
@@ -385,13 +417,14 @@ def run_medicine_app(epd, gt_dev, gt_old, gt):
 
         # Auto-refresh data periodically
         if current_time - last_update > UPDATE_INTERVAL:
-            logger.info("Auto-refreshing medicine data")
-            pending = get_pending_medicines()
+            logging.info("Auto-refreshing medicine data")
+            data = load_medicine_data()
+            pending = get_pending_medicines(data)
 
             if pending and view_mode == "reminder":
                 image = draw_current_reminder(pending, rotation_index)
             else:
-                image = draw_schedule_view()
+                image = draw_schedule_view(data)
                 view_mode = "schedule"
 
             epd.displayPartial(epd.getbuffer(image))
@@ -403,14 +436,14 @@ def run_medicine_app(epd, gt_dev, gt_old, gt):
 
         # Check for exit signal from menu
         if hasattr(gt_dev, "exit_requested") and gt_dev.exit_requested:
-            logger.info("Exit requested by menu")
+            logging.info("Exit requested by menu")
             flag_t[0] = 0
             break
 
         # Handle button clicks (menu system sets TouchpointFlag)
         # Note: No position check needed for GPIO-only (no touchscreen)
         if gt_dev.TouchpointFlag:
-            logger.info("Button clicked - processing")
+            logging.info("Button clicked - processing")
             gt_dev.TouchpointFlag = 0
 
             current_click_time = time.time()
@@ -418,17 +451,18 @@ def run_medicine_app(epd, gt_dev, gt_old, gt):
             # Check if this is a double click
             if current_click_time - last_click_time < DOUBLE_CLICK_TIME:
                 # Double click detected - mark selected medicine as taken
-                logger.info("Double click - marking selected medicine as taken")
+                logging.info("Double click - marking selected medicine as taken")
                 last_click_time = 0  # Reset to prevent triple-click
 
-                pending = get_pending_medicines()
+                data = load_medicine_data()
+                pending = get_pending_medicines(data)
 
                 if pending and len(pending) > 0:
                     # Mark only the currently selected medicine
                     selected_med = [pending[rotation_index % len(pending)]]
-                    logger.info(f"Marking {selected_med[0]['name']} as taken")
+                    logging.info(f"Marking {selected_med[0]['name']} as taken")
 
-                    if mark_medicines_taken(selected_med):
+                    if mark_medicines_taken(data, selected_med):
                         # Show confirmation screen
                         epd.init(epd.FULL_UPDATE)
                         epd.Clear(0xFF)
@@ -440,15 +474,16 @@ def run_medicine_app(epd, gt_dev, gt_old, gt):
                         time.sleep(2)  # Show confirmation for 2 seconds
 
                         # Refresh display
-                        last_known_timestamp = get_data_timestamp()
-                        pending = get_pending_medicines()
+                        data = load_medicine_data()
+                        last_known_timestamp = get_data_timestamp(data)
+                        pending = get_pending_medicines(data)
                         rotation_index = 0
 
                         if pending:
                             image = draw_current_reminder(pending, rotation_index)
                             view_mode = "reminder"
                         else:
-                            image = draw_schedule_view()
+                            image = draw_schedule_view(data)
                             view_mode = "schedule"
 
                         epd.displayPartial(epd.getbuffer(image))
@@ -457,20 +492,21 @@ def run_medicine_app(epd, gt_dev, gt_old, gt):
                 # Single click - cycle to next medicine
                 last_click_time = current_click_time
 
-                pending = get_pending_medicines()
+                data = load_medicine_data()
+                pending = get_pending_medicines(data)
 
                 if pending and len(pending) > 1:
                     rotation_index = (rotation_index + 1) % len(pending)
-                    logger.info(f"Single click - cycling to medicine {rotation_index + 1}/{len(pending)}")
+                    logging.info(f"Single click - cycling to medicine {rotation_index + 1}/{len(pending)}")
                     image = draw_current_reminder(pending, rotation_index)
                     epd.displayPartial(epd.getbuffer(image))
                 elif pending and len(pending) == 1:
-                    logger.info("Single click - only one medicine, just refresh")
+                    logging.info("Single click - only one medicine, just refresh")
                     image = draw_current_reminder(pending, 0)
                     epd.displayPartial(epd.getbuffer(image))
                 else:
-                    logger.info("Single click - no pending medicines, show schedule")
-                    image = draw_schedule_view()
+                    logging.info("Single click - no pending medicines, show schedule")
+                    image = draw_schedule_view(data)
                     epd.displayPartial(epd.getbuffer(image))
 
         time.sleep(0.1)
@@ -478,17 +514,3 @@ def run_medicine_app(epd, gt_dev, gt_old, gt):
     gt_old.X[0] = 0
     gt_old.Y[0] = 0
     gt_old.S[0] = 0
-
-
-# Signal handler for graceful shutdown
-def cleanup():
-    """Cleanup database connection on exit"""
-    logger.info("Cleaning up medicine app...")
-    try:
-        db.close()
-    except:
-        pass
-
-
-# Install signal handlers
-install_signal_handlers(cleanup)

@@ -1,6 +1,6 @@
 {
   "weather": {
-    "location": "Rio de Janeiro",
+    "location": "Boston",
     "units": "metric",
     "update_interval": 300,
     "display_format": "detailed",

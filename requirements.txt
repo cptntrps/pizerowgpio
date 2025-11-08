@@ -1,0 +1,24 @@
+# Pi Zero 2W Medicine Tracker - Python Dependencies
+# Install with: pip3 install -r requirements.txt
+
+# Web Framework
+Flask>=2.0.0
+
+# Image Processing
+Pillow>=8.0.0
+
+# GPIO Control
+gpiozero>=1.6.2
+
+# Data Validation
+marshmallow>=3.14.0
+
+# Database (built-in with Python 3)
+# sqlite3
+
+# Standard library dependencies (no installation needed):
+# - json
+# - threading
+# - subprocess
+# - datetime
+# - logging

@@ -31,6 +31,15 @@ Thumbs.db
 # Sensitive data (uncomment if needed)
 # medicine_data.json
 
+# Database files
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Backup files
+backups/
+
 # Temporary files
 *.tmp
 *.bak

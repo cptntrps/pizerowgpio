@@ -490,10 +490,3 @@ class TestStressTest:
 
         # Should handle burst with high success rate
         assert success_rate >= 90.0
-
-
-# Mark slow tests
-pytest.mark.slow = pytest.mark.skipif(
-    not pytest.config.getoption("--run-slow", default=False),
-    reason="Slow tests skipped unless --run-slow is specified"
-)

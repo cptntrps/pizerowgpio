@@ -6,7 +6,7 @@ Provides high-level reusable UI components built from primitives.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Tuple
 from PIL import ImageDraw, ImageFont
 from .canvas import DISPLAY_WIDTH
 from .shapes import draw_rectangle, draw_horizontal_line

@@ -9,7 +9,7 @@ Performance: Font cache reduces load time from ~50ms to <1ms per font access.
 """
 
 import os
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple
 from PIL import ImageFont
 
 
@@ -73,7 +73,6 @@ def clear_font_cache() -> None:
         >>> clear_font_cache()
         >>> # Cache is empty, next get_font() will reload from disk
     """
-    global _font_cache
     _font_cache.clear()
 
 

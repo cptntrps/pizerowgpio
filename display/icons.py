@@ -293,9 +293,9 @@ def _draw_snow_icon(draw, x, y, size, color):
         flake_size = size // 10
         # Cross
         draw.line([flake_x - flake_size, flake_y, flake_x + flake_size, flake_y],
-                 fill=color, width=1)
+                  fill=color, width=1)
         draw.line([flake_x, flake_y - flake_size, flake_x, flake_y + flake_size],
-                 fill=color, width=1)
+                  fill=color, width=1)
 
 
 def _draw_storm_icon(draw, x, y, size, color):
@@ -392,7 +392,7 @@ def draw_airplane_icon(
     y: int,
     size: int = 20,
     color: int = 0,
-    angle: float = 0
+    angle: float = 0  # pylint: disable=unused-argument
 ) -> None:
     """Draw airplane icon
 
@@ -403,6 +403,7 @@ def draw_airplane_icon(
         size: Icon size in pixels (default: 20)
         color: Icon color (default: 0 for black)
         angle: Rotation angle in degrees (default: 0 = pointing up)
+               (Currently not implemented - reserved for future use)
 
     Example:
         >>> draw_airplane_icon(draw, 100, 50, size=25, angle=45)
@@ -454,7 +455,6 @@ def draw_battery_icon(
 
     # Battery terminal
     terminal_width = 2
-    terminal_height = height // 3
     draw.rectangle(
         [x + size, y + height // 3, x + size + terminal_width, y + 2 * height // 3],
         outline=color,

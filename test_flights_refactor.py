@@ -16,6 +16,8 @@ import json
 sys.path.insert(0, '/home/user/pizerowgpio')
 
 # Test geographic calculations
+
+
 class TestGeographicCalculations(unittest.TestCase):
     """Test distance and bearing calculations"""
 
@@ -210,7 +212,7 @@ class TestCodeRefactoringImprovements(unittest.TestCase):
 
         # Should NOT have inline attribute checking
         self.assertNotIn('hasattr(gt_dev, "exit_requested") and gt_dev.exit_requested',
-                        content)
+                         content)
 
     def test_uses_cleanup_touch_state(self):
         """Should use cleanup_touch_state helper"""

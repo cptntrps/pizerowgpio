@@ -14,8 +14,7 @@ from api.v1 import api_v1_bp
 from api.v1.serializers import (
     create_success_response,
     create_error_response,
-    create_paginated_response,
-    serialize_medicine
+    create_paginated_response
 )
 from db.medicine_db import MedicineDatabase
 from shared.validation import validate_medicine, format_validation_error
@@ -48,10 +47,11 @@ def list_medicines():
         500: Database error
     """
     try:
-        # Parse query parameters
+        # Parse query parameters with bounds validation
         active = request.args.get('active', 'true').lower() == 'true'
-        page = int(request.args.get('page', 1))
-        per_page = min(int(request.args.get('per_page', 20)), 100)
+        page = max(1, int(request.args.get('page', 1)))  # Page >= 1
+        per_page = int(request.args.get('per_page', 20))
+        per_page = max(1, min(per_page, 100))  # 1 <= per_page <= 100
 
         # Get medicines from database
         db = MedicineDatabase()
@@ -335,16 +335,25 @@ def get_pending_medicines():
         500: Database error
     """
     try:
-        from datetime import datetime, date, time
+        from datetime import datetime
 
         # Parse query parameters
         date_str = request.args.get('date')
         time_str = request.args.get('time')
         reminder_window = int(request.args.get('reminder_window', 30))
+        # Bounds validation for reminder_window
+        reminder_window = max(1, min(reminder_window, 1440))  # 1 minute to 24 hours
 
         # Parse date/time or use current
         if date_str and time_str:
-            check_datetime = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+            try:
+                check_datetime = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+            except ValueError as e:
+                return jsonify(create_error_response(
+                    code='VALIDATION_ERROR',
+                    message='Invalid date/time format. Use YYYY-MM-DD HH:MM',
+                    details={'error': str(e)}
+                )), 400
         else:
             check_datetime = datetime.now()
 
@@ -430,7 +439,15 @@ def mark_medicine_taken(medicine_id):
         timestamp_str = data.get('timestamp')
 
         if timestamp_str:
-            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', ''))
+            try:
+                # Handle ISO format with 'Z' suffix
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            except ValueError as e:
+                return jsonify(create_error_response(
+                    code='VALIDATION_ERROR',
+                    message='Invalid timestamp format. Use ISO 8601 format',
+                    details={'field': 'timestamp', 'error': str(e)}
+                )), 400
         else:
             timestamp = datetime.now()
 
@@ -512,7 +529,15 @@ def batch_mark_taken():
         # Get optional timestamp
         timestamp_str = data.get('timestamp')
         if timestamp_str:
-            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', ''))
+            try:
+                # Handle ISO format with 'Z' suffix
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            except ValueError as e:
+                return jsonify(create_error_response(
+                    code='VALIDATION_ERROR',
+                    message='Invalid timestamp format. Use ISO 8601 format',
+                    details={'field': 'timestamp', 'error': str(e)}
+                )), 400
         else:
             timestamp = datetime.now()
 

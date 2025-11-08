@@ -10,7 +10,7 @@ from typing import Optional, List, Tuple
 from PIL import ImageDraw, ImageFont
 from .canvas import DISPLAY_WIDTH, DISPLAY_HEIGHT
 from .shapes import draw_horizontal_line, draw_vertical_line
-from .text import get_text_size, draw_centered_text, truncate_text_to_width
+from .text import get_text_size, truncate_text_to_width
 from .fonts import get_font_preset
 
 
@@ -73,7 +73,7 @@ class HeaderLayout:
             time_str = datetime.now().strftime("%H:%M")
             time_width, _ = get_text_size(draw, time_str, self.time_font)
             draw.text((DISPLAY_WIDTH - time_width - 5, 2),
-                     time_str, font=self.time_font, fill=color)
+                      time_str, font=self.time_font, fill=color)
 
         # Draw divider line
         if draw_divider:

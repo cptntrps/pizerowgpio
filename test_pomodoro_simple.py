@@ -328,7 +328,8 @@ class TestBackupFileIntegrity(unittest.TestCase):
 
         # Should be reasonably different sizes
         # (refactored may be larger due to docstrings, or smaller due to code reduction)
-        self.assertGreater(max(backup_lines, refactored_lines) / min(backup_lines, refactored_lines), 0.8)
+        self.assertGreater(max(backup_lines, refactored_lines) /
+                           min(backup_lines, refactored_lines), 0.8)
 
 
 class TestRefactoringGoals(unittest.TestCase):
@@ -362,7 +363,10 @@ class TestRefactoringGoals(unittest.TestCase):
         with open(refactored, 'r') as f:
             content = f.read()
         self.assertIn('draw_tomato_icon', content, "Should use draw_tomato_icon")
-        self.assertNotIn('def draw_tomato_frame', content, "Should not define custom tomato frames")
+        self.assertNotIn(
+            'def draw_tomato_frame',
+            content,
+            "Should not define custom tomato frames")
 
     def test_uses_periodic_timer(self):
         """Refactored app should use PeriodicTimer"""
@@ -380,7 +384,8 @@ class TestRefactoringGoals(unittest.TestCase):
         # Should not have the old threading pattern
         self.assertNotIn('def pthread_irq', content, "Should not have pthread_irq function")
         self.assertNotIn('flag_t = [1]', content, "Should not have flag_t array")
-        self.assertNotIn('t = threading.Thread(target=pthread_irq)', content, "Should not create threading.Thread manually")
+        self.assertNotIn('t = threading.Thread(target=pthread_irq)', content,
+                         "Should not create threading.Thread manually")
 
     def test_has_comprehensive_error_handling(self):
         """Should have error handling in key functions"""

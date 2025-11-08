@@ -13,6 +13,7 @@ Key Features:
 - Animated flight information cycling
 """
 
+from TP_lib import gt1151, epd2in13_V3
 import time
 import json
 import subprocess
@@ -39,7 +40,6 @@ from display.fonts import get_font_preset
 # ============================================================================
 
 setup_paths()
-from TP_lib import gt1151, epd2in13_V3
 
 logger = setup_logging('flights_app', log_to_file=True)
 
@@ -97,8 +97,8 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     R = 6371
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
-    a = (math.sin(dlat/2)**2 +
-         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2)
+    a = (math.sin(dlat / 2)**2 +
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2)
     c = 2 * math.asin(math.sqrt(a))
     return R * c
 
@@ -171,7 +171,7 @@ def get_flight_search() -> tuple:
         commercial_flights.sort(key=lambda x: x["distance"])
         chosen = commercial_flights[0]
         logger.info(f"Found flight {chosen['callsign']} at {chosen['distance']:.1f}km, "
-                   f"bearing {chosen['bearing']:.0f}°")
+                    f"bearing {chosen['bearing']:.0f}°")
         return chosen["id"], chosen["distance"], chosen["bearing"]
 
     return safe_execute(_fetch, "Flight search error", (None, None, None))
@@ -262,7 +262,7 @@ def get_flight_details(flight_id: str) -> dict:
 
     if flight_data:
         logger.info(f"Flight: {flight_data['callsign']} {flight_data['origin']}->"
-                   f"{flight_data['destination']} on {flight_data['aircraft']}")
+                    f"{flight_data['destination']} on {flight_data['aircraft']}")
 
     return flight_data
 
@@ -391,9 +391,9 @@ def draw_flight_portal(flight_data: dict, animation_frame: int = 0) -> Image.Ima
 
     # Distance and bearing (bold for prominence)
     draw.text((5, 85), f"Dist: {flight_data.get('distance', 0):.1f} km",
-             font=f_medium_bold, fill=0)
+              font=f_medium_bold, fill=0)
     draw.text((5, 105), f"Bear: {flight_data.get('bearing', 0):.0f}°",
-             font=f_medium_bold, fill=0)
+              font=f_medium_bold, fill=0)
 
     return img
 
@@ -485,8 +485,19 @@ def _run_flights_app_impl(epd, gt_dev, gt_old, gt):
             return
 
         # Flight display mode
-        _flight_display_mode(epd, gt, gt_dev, gt_old, touch, flight_data, animation_frame,
-                            update_timer, animation_timer, quote_timer, quote_index, AVIATION_QUOTES)
+        _flight_display_mode(
+            epd,
+            gt,
+            gt_dev,
+            gt_old,
+            touch,
+            flight_data,
+            animation_frame,
+            update_timer,
+            animation_timer,
+            quote_timer,
+            quote_index,
+            AVIATION_QUOTES)
 
     finally:
         touch.stop()
@@ -537,7 +548,7 @@ def _quote_cycle_mode(epd, gt, gt_dev, gt_old, touch, quote_index, quotes):
             flight_data = get_current_flight()
             if flight_data:
                 logger.info(f"Flight found: {flight_data.get('callsign')}, "
-                           "exiting quote mode")
+                            "exiting quote mode")
                 return
             else:
                 logger.info("Still no flights, continuing quote cycle")
@@ -556,7 +567,7 @@ def _quote_cycle_mode(epd, gt, gt_dev, gt_old, touch, quote_index, quotes):
 
 
 def _flight_display_mode(epd, gt, gt_dev, gt_old, touch, flight_data, animation_frame,
-                        update_timer, animation_timer, quote_timer, quote_index, quotes):
+                         update_timer, animation_timer, quote_timer, quote_index, quotes):
     """Display flight info with animated cycling and periodic quotes
 
     Three periodic operations:

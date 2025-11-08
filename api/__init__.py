@@ -48,8 +48,8 @@ def create_app(config_name='development'):
     register_health_check(app)
 
     # Log startup
-    logger.info(f"Flask app created with config: {config_name}")
-    logger.info(f"API Version: {app.config.get('API_VERSION', '1.0.0')}")
+    logger.info("Flask app created with config: %s", config_name)
+    logger.info("API Version: %s", app.config.get('API_VERSION', '1.0.0'))
 
     return app
 
@@ -157,7 +157,7 @@ def register_error_handlers(app):
     @app.errorhandler(500)
     def internal_error(error):
         """Handle 500 Internal Server errors"""
-        logger.error(f"Internal server error: {error}")
+        logger.error("Internal server error: %s", error)
         return jsonify({
             'success': False,
             'error': {
@@ -195,8 +195,8 @@ def register_health_check(app):
             # Simple query to test connection
             db.get_all_medicines()
             db_status = 'connected'
-        except Exception as e:
-            logger.error(f"Database health check failed: {e}")
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            logger.error("Database health check failed: %s", e)
             db_status = 'disconnected'
 
         return jsonify({

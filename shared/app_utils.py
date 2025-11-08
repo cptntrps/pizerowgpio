@@ -240,10 +240,17 @@ def clear_font_cache():
 # ============================================================================
 
 class ConfigLoader:
-    """Thread-safe configuration loader with environment variable support"""
+    """Thread-safe configuration loader with environment variable support
+
+    Supports loading environment-specific configurations:
+    - PIZERO_ENV: Set to 'development', 'production', or 'test'
+    - PIZERO_CONFIG: Override config file path
+    - PIZERO_CONFIG_DIR: Override config directory
+    """
 
     _instance = None
     _config = None
+    _environment = None
 
     def __new__(cls):
         if cls._instance is None:
@@ -251,12 +258,65 @@ class ConfigLoader:
         return cls._instance
 
     @classmethod
+    def get_environment(cls) -> str:
+        """Get current environment
+
+        Returns:
+            Environment name: 'development', 'production', or 'test'
+        """
+        if cls._environment is None:
+            cls._environment = os.environ.get('PIZERO_ENV', 'development')
+        return cls._environment
+
+    @classmethod
+    def set_environment(cls, environment: str) -> None:
+        """Set environment and reload config
+
+        Args:
+            environment: Environment name ('development', 'production', 'test')
+        """
+        if environment not in ['development', 'production', 'test']:
+            raise ValueError(f"Invalid environment: {environment}")
+
+        cls._environment = environment
+        cls._config = None  # Force reload
+
+    @classmethod
     def get_config_path(cls) -> str:
-        """Get path to config.json"""
-        return os.environ.get(
-            'PIZERO_CONFIG',
-            os.path.join(get_base_dir(), 'config.json')
+        """Get path to config.json
+
+        Checks for config file in this order:
+        1. PIZERO_CONFIG environment variable
+        2. Environment-specific config in config/ directory
+        3. Legacy config.json in base directory
+        4. Environment-specific config in current directory
+
+        Returns:
+            Path to configuration file
+        """
+        # Check explicit override
+        if 'PIZERO_CONFIG' in os.environ:
+            return os.environ['PIZERO_CONFIG']
+
+        environment = cls.get_environment()
+        config_dir = os.environ.get(
+            'PIZERO_CONFIG_DIR',
+            os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'config')
         )
+
+        # Try environment-specific config in config/ directory
+        env_config = os.path.join(config_dir, f'{environment}.json')
+        if os.path.exists(env_config):
+            return env_config
+
+        # Fall back to legacy config.json in base directory
+        legacy_config = os.path.join(get_base_dir(), 'config.json')
+        if os.path.exists(legacy_config):
+            logging.debug(f"Using legacy config: {legacy_config}")
+            return legacy_config
+
+        # Final fallback
+        return env_config
 
     @classmethod
     def load(cls, force_reload: bool = False) -> dict:
@@ -277,6 +337,10 @@ class ConfigLoader:
                 with open(config_path, 'r') as f:
                     cls._config = json.load(f)
                 logging.debug(f"Loaded config from: {config_path}")
+
+                # Merge with environment-specific overrides
+                cls._apply_env_overrides()
+
             except FileNotFoundError:
                 logging.error(f"Config file not found: {config_path}")
                 cls._config = {}
@@ -285,6 +349,75 @@ class ConfigLoader:
                 cls._config = {}
 
         return cls._config
+
+    @classmethod
+    def _apply_env_overrides(cls) -> None:
+        """Apply environment variable overrides to loaded config
+
+        Supports dotted notation: PIZERO_CONFIG_SECTION_KEY=value
+        Example: PIZERO_CONFIG_MEDICINE_UPDATE_INTERVAL=120
+        """
+        if not cls._config:
+            return
+
+        for key, value in os.environ.items():
+            if not key.startswith('PIZERO_CONFIG_'):
+                continue
+
+            # Remove prefix and convert to lowercase
+            config_key = key[14:].lower()
+
+            # Parse dotted notation: section_key or section_subkey
+            parts = config_key.split('_', 1)
+            if len(parts) != 2:
+                continue
+
+            section, key_path = parts
+            section = section.lower()
+
+            if section not in cls._config:
+                continue
+
+            # Try to convert value to appropriate type
+            try:
+                converted_value = cls._convert_env_value(value)
+                cls._config[section][key_path] = converted_value
+                logging.debug(
+                    f"Applied override: {section}.{key_path} = {converted_value}"
+                )
+            except Exception as e:
+                logging.warning(f"Failed to apply override {key}={value}: {e}")
+
+    @staticmethod
+    def _convert_env_value(value: str):
+        """Convert environment variable string to appropriate type
+
+        Args:
+            value: String value from environment variable
+
+        Returns:
+            Converted value (int, float, bool, or str)
+        """
+        # Try boolean
+        if value.lower() in ('true', 'yes', '1'):
+            return True
+        if value.lower() in ('false', 'no', '0'):
+            return False
+
+        # Try integer
+        try:
+            return int(value)
+        except ValueError:
+            pass
+
+        # Try float
+        try:
+            return float(value)
+        except ValueError:
+            pass
+
+        # Return as string
+        return value
 
     @classmethod
     def get_section(cls, section: str, default: dict = None) -> dict:
@@ -314,6 +447,62 @@ class ConfigLoader:
         """
         section_config = cls.get_section(section)
         return section_config.get(key, default)
+
+    @classmethod
+    def get_value_nested(cls, path: str, default=None):
+        """Get a nested configuration value using dot notation
+
+        Args:
+            path: Dot-separated path (e.g., 'medicine.update_interval')
+            default: Default value if not found
+
+        Returns:
+            Configuration value
+
+        Example:
+            ConfigLoader.get_value_nested('medicine.update_interval', 60)
+        """
+        config = cls.load()
+        parts = path.split('.')
+
+        value = config
+        for part in parts:
+            if isinstance(value, dict):
+                value = value.get(part)
+            else:
+                return default
+
+        return value if value is not None else default
+
+    @classmethod
+    def validate(cls) -> bool:
+        """Validate loaded configuration
+
+        Returns:
+            True if configuration is valid
+
+        Raises:
+            ValueError: If configuration is invalid
+        """
+        try:
+            from shared.config_validator import ConfigValidator
+            config = cls.load()
+
+            # Get config path
+            config_path = cls.get_config_path()
+
+            # Create validator and validate
+            validator = ConfigValidator(config_path)
+            validator.config = config
+            validator.validate_config()
+
+            return True
+        except ImportError:
+            logging.warning("config_validator module not available, skipping validation")
+            return True
+        except Exception as e:
+            logging.error(f"Configuration validation failed: {e}")
+            raise
 
 
 # ============================================================================
@@ -437,6 +626,6 @@ def atomic_write(filepath: str):
         # Clean up temp file on error
         try:
             os.remove(temp_path)
-        except:
+        except BaseException:
             pass
         raise

@@ -159,10 +159,10 @@ class Canvas:
         """Context manager entry"""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> bool:
         """Context manager exit"""
-        # Cleanup if needed
-        pass
+        # Cleanup if needed - no resources to clean
+        return False
 
 
 # ============================================================================

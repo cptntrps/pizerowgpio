@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-from flask import Flask, render_template, request, jsonify
 import json
-import os
 from datetime import datetime
+
+from flask import Flask, render_template, request, jsonify
 
 # Configure Flask app with custom template and static folders
 app = Flask(__name__,
@@ -14,10 +14,12 @@ CONFIG_FILE = "/home/pizero2w/pizero_apps/config.json"
 # ROUTES
 # ============================================
 
+
 @app.route('/')
 def index():
     """Render the main dashboard page"""
     return render_template('index.html')
+
 
 @app.route('/api/config', methods=['GET'])
 def get_config():
@@ -27,6 +29,7 @@ def get_config():
         return jsonify(config)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/config/<section>', methods=['POST'])
 def update_config(section):
@@ -40,12 +43,15 @@ def update_config(section):
         with open(CONFIG_FILE, 'w') as f:
             json.dump(config, f, indent=2)
 
-        return jsonify({"success": True, "message": f"{section.title()} settings saved successfully!"})
+        return jsonify({"success": True,
+                        "message": f"{section.title()} settings saved successfully!"})
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
 
+
 # Medicine API endpoints
 MEDICINE_DATA_FILE = "/home/pizero2w/pizero_apps/medicine_data.json"
+
 
 @app.route('/api/medicine/data', methods=['GET'])
 def get_medicine_data():
@@ -55,6 +61,7 @@ def get_medicine_data():
         return jsonify(data)
     except Exception as e:
         return jsonify({"medicines": [], "tracking": {}, "time_windows": {}}), 200
+
 
 @app.route('/api/medicine/add', methods=['POST'])
 def add_medicine():
@@ -78,6 +85,7 @@ def add_medicine():
         return jsonify({"success": True, "message": "Medicine added successfully!"})
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
 
 @app.route('/api/medicine/update', methods=['POST'])
 def update_medicine():
@@ -111,6 +119,7 @@ def update_medicine():
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
 
+
 @app.route('/api/medicine/delete/<med_id>', methods=['DELETE'])
 def delete_medicine(med_id):
     try:
@@ -136,6 +145,7 @@ def delete_medicine(med_id):
         return jsonify({"success": True, "message": "Medicine deleted successfully!"})
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
 
 @app.route('/api/medicine/mark-taken', methods=['POST'])
 def mark_medicine_taken():
@@ -169,7 +179,8 @@ def mark_medicine_taken():
         elif 'medicine_id' in request_data:
             medicine_ids = [request_data['medicine_id']]
         else:
-            return jsonify({"success": False, "message": "No medicine_id or medicine_ids provided"}), 400
+            return jsonify(
+                {"success": False, "message": "No medicine_id or medicine_ids provided"}), 400
 
         # Get timestamp (use provided or current time)
         if 'timestamp' in request_data:
@@ -177,8 +188,9 @@ def mark_medicine_taken():
             # Parse to validate format
             try:
                 dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
-            except:
-                return jsonify({"success": False, "message": "Invalid timestamp format. Use ISO 8601 (e.g., 2025-11-07T08:30:00)"}), 400
+            except BaseException:
+                return jsonify(
+                    {"success": False, "message": "Invalid timestamp format. Use ISO 8601 (e.g., 2025-11-07T08:30:00)"}), 400
         else:
             dt = datetime.now()
             timestamp = dt.strftime("%Y-%m-%dT%H:%M:%S")
@@ -265,6 +277,7 @@ def mark_medicine_taken():
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
 
+
 @app.route('/api/medicine/pending', methods=['GET'])
 def get_pending_medicines():
     """
@@ -348,6 +361,7 @@ def get_pending_medicines():
 
     except Exception as e:
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

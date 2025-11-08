@@ -9,7 +9,6 @@ viewing history, and getting statistics.
 import logging
 from datetime import datetime, date, timedelta
 from flask import request, jsonify
-from marshmallow import ValidationError
 
 from api.v1 import api_v1_bp
 from api.v1.serializers import (
@@ -18,7 +17,7 @@ from api.v1.serializers import (
     create_paginated_response
 )
 from db.medicine_db import MedicineDatabase
-from shared.validation import validate_date_format, validate_time_format
+from shared.validation import validate_date_format
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +136,15 @@ def mark_specific_medicine_taken(medicine_id):
         timestamp_str = data.get('timestamp')
 
         if timestamp_str:
-            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', ''))
+            try:
+                # Handle ISO format with 'Z' suffix
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            except ValueError as e:
+                return jsonify(create_error_response(
+                    code='VALIDATION_ERROR',
+                    message='Invalid timestamp format. Use ISO 8601 format',
+                    details={'field': 'timestamp', 'error': str(e)}
+                )), 400
         else:
             timestamp = datetime.now()
 
@@ -196,12 +203,13 @@ def get_all_tracking():
         500: Database error
     """
     try:
-        # Parse query parameters
+        # Parse query parameters with bounds validation
         medicine_id = request.args.get('medicine_id')
         start_date_str = request.args.get('start_date')
         end_date_str = request.args.get('end_date')
-        page = int(request.args.get('page', 1))
-        per_page = min(int(request.args.get('per_page', 20)), 100)
+        page = max(1, int(request.args.get('page', 1)))  # Page >= 1
+        per_page = int(request.args.get('per_page', 20))
+        per_page = max(1, min(per_page, 100))  # 1 <= per_page <= 100
 
         # Validate date formats
         start_date = None
@@ -294,7 +302,15 @@ def batch_mark_medicines_taken():
         # Get optional timestamp
         timestamp_str = data.get('timestamp')
         if timestamp_str:
-            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', ''))
+            try:
+                # Handle ISO format with 'Z' suffix
+                timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            except ValueError as e:
+                return jsonify(create_error_response(
+                    code='VALIDATION_ERROR',
+                    message='Invalid timestamp format. Use ISO 8601 format',
+                    details={'field': 'timestamp', 'error': str(e)}
+                )), 400
         else:
             timestamp = datetime.now()
 

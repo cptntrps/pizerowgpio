@@ -355,7 +355,8 @@ def run_mbta_app(epd, gt_dev, gt_old, gt):
                     logger.debug(f"Updating display - mode {mode}")
 
                     if mode == 0:
-                        image = draw_commute_dashboard(HOME_STATION, WORK_STATION, HOME_NAME, WORK_NAME)
+                        image = draw_commute_dashboard(
+                            HOME_STATION, WORK_STATION, HOME_NAME, WORK_NAME)
                     else:
                         image = draw_system_status()
 
@@ -375,7 +376,8 @@ def run_mbta_app(epd, gt_dev, gt_old, gt):
             if gt_dev.TouchpointFlag:
                 gt_dev.TouchpointFlag = 0
                 mode = 1 - mode
-                logger.info(f"Touch detected - switched to mode {mode} ({'Status' if mode else 'Commute'})")
+                logger.info(
+                    f"Touch detected - switched to mode {mode} ({'Status' if mode else 'Commute'})")
                 update_timer.reset()  # Force immediate refresh
 
     except KeyboardInterrupt:

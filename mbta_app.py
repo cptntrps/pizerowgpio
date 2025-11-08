@@ -40,7 +40,7 @@ def fetch_json(url: str) -> Optional[dict]:
     """Fetch JSON from URL using curl"""
     try:
         result = subprocess.run(['curl', '-s', '-m', '10', url],
-                              capture_output=True, text=True, timeout=15)
+                                capture_output=True, text=True, timeout=15)
         if result.returncode == 0 and result.stdout:
             return json.loads(result.stdout)
     except (subprocess.TimeoutExpired, json.JSONDecodeError) as e:
@@ -52,7 +52,8 @@ def fetch_json(url: str) -> Optional[dict]:
 
 def get_predictions(stop_id: str) -> List[Dict]:
     """Get next train predictions for a stop"""
-    data = fetch_json(f"{MBTA_API}/predictions?filter[stop]={stop_id}&sort=arrival_time&include=route,trip")
+    data = fetch_json(
+        f"{MBTA_API}/predictions?filter[stop]={stop_id}&sort=arrival_time&include=route,trip")
     predictions = []
 
     if not data or 'data' not in data:
@@ -66,7 +67,10 @@ def get_predictions(stop_id: str) -> List[Dict]:
                 continue
 
             arrival_dt = datetime.fromisoformat(arrival.replace('Z', '+00:00'))
-            minutes = max(0, int((datetime.now(arrival_dt.tzinfo) - arrival_dt).total_seconds() / -60))
+            minutes = max(
+                0, int(
+                    (datetime.now(
+                        arrival_dt.tzinfo) - arrival_dt).total_seconds() / -60))
             route_id = pred.get('relationships', {}).get('route', {}).get('data', {}).get('id', '')
             predictions.append({'route': route_id, 'minutes': minutes})
         except Exception as e:
@@ -86,7 +90,13 @@ def get_system_alerts() -> Dict[str, str]:
                 effect = alert.get('attributes', {}).get('effect', '')
                 if effect not in ['SUSPENSION', 'DELAY', 'DETOUR']:
                     continue
-                for entity in alert.get('relationships', {}).get('informed_entity', {}).get('data', []):
+                for entity in alert.get(
+                    'relationships',
+                    {}).get(
+                    'informed_entity',
+                    {}).get(
+                    'data',
+                        []):
                     route_id = entity.get('route')
                     if route_id in [line[0] for line in LINES_INFO] and route_id not in alerts:
                         alerts[route_id] = effect
@@ -110,7 +120,8 @@ def format_time(minutes: int) -> str:
 def draw_commute_dashboard(home_station: str, work_station: str, home_name: str, work_name: str):
     """Draw commute dashboard with next trains"""
     img, draw = create_canvas()
-    f_title, f_body, f_small = get_font_preset('title'), get_font_preset('body'), get_font_preset('small')
+    f_title, f_body, f_small = get_font_preset(
+        'title'), get_font_preset('body'), get_font_preset('small')
 
     draw_title_bar(draw, "MBTA Commute", f_title)
 
@@ -128,7 +139,12 @@ def draw_commute_dashboard(home_station: str, work_station: str, home_name: str,
     y = 48
     if predictions:
         for pred in predictions[:4]:
-            draw.text((10, y), f"{pred['route'].replace('-', ' ')}: {format_time(pred['minutes'])}", font=f_body, fill=0)
+            draw.text(
+                (10,
+                 y),
+                f"{pred['route'].replace('-', ' ')}: {format_time(pred['minutes'])}",
+                font=f_body,
+                fill=0)
             y += 16
     else:
         draw.text((10, 55), "No upcoming trains", font=f_body, fill=0)
@@ -140,7 +156,8 @@ def draw_commute_dashboard(home_station: str, work_station: str, home_name: str,
 def draw_system_status():
     """Draw system-wide status for all lines"""
     img, draw = create_canvas()
-    f_title, f_body, f_small = get_font_preset('title'), get_font_preset('body'), get_font_preset('small')
+    f_title, f_body, f_small = get_font_preset(
+        'title'), get_font_preset('body'), get_font_preset('small')
 
     draw_title_bar(draw, "MBTA System Status", f_title)
     alerts = get_system_alerts()
@@ -149,7 +166,8 @@ def draw_system_status():
     for line_id, line_name in LINES_INFO:
         if line_id in alerts:
             effect = alerts[line_id]
-            status = "⊗ SUSPENDED" if effect == 'SUSPENSION' else ("⚠ DELAYS" if effect == 'DELAY' else "⚠ ALERT")
+            status = "⊗ SUSPENDED" if effect == 'SUSPENSION' else (
+                "⚠ DELAYS" if effect == 'DELAY' else "⚠ ALERT")
         else:
             status = "✓ Normal"
         draw.text((10, y), f"{line_name}:", font=f_body, fill=0)
@@ -174,8 +192,20 @@ def run_mbta_app(epd, gt_dev, gt_old, gt):
 
     config = ConfigLoader.load()
     mbta = config.get('mbta', {})
-    HOME = (mbta.get('home_station_id', 'place-davis'), mbta.get('home_station_name', 'Davis Square'))
-    WORK = (mbta.get('work_station_id', 'place-pktrm'), mbta.get('work_station_name', 'Park Street'))
+    HOME = (
+        mbta.get(
+            'home_station_id',
+            'place-davis'),
+        mbta.get(
+            'home_station_name',
+            'Davis Square'))
+    WORK = (
+        mbta.get(
+            'work_station_id',
+            'place-pktrm'),
+        mbta.get(
+            'work_station_name',
+            'Park Street'))
     UPDATE_INTERVAL = mbta.get('update_interval', 30)
 
     logger.info(f"MBTA app starting - Home: {HOME[1]}, Work: {WORK[1]}")
@@ -200,7 +230,8 @@ def run_mbta_app(epd, gt_dev, gt_old, gt):
 
             if update_timer.is_ready():
                 try:
-                    image = draw_commute_dashboard(HOME[0], WORK[0], HOME[1], WORK[1]) if mode == 0 else draw_system_status()
+                    image = draw_commute_dashboard(
+                        HOME[0], WORK[0], HOME[1], WORK[1]) if mode == 0 else draw_system_status()
                     epd.displayPartial(epd.getbuffer(image))
                 except Exception as e:
                     logger.error(f"Display update error: {e}")

@@ -6,13 +6,13 @@ Provides high-level reusable UI components built from primitives.
 """
 
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional
 from PIL import ImageDraw, ImageFont
 from .canvas import DISPLAY_WIDTH
 from .shapes import draw_rectangle, draw_horizontal_line
 from .text import get_text_size, truncate_text_to_width
 from .fonts import get_font_preset
-from .icons import draw_battery_icon, draw_wifi_icon, draw_checkmark
+from .icons import draw_battery_icon, draw_wifi_icon
 
 
 # ============================================================================
@@ -83,7 +83,7 @@ class StatusBar:
         # Time
         if self.show_time:
             time_str = datetime.now().strftime("%H:%M")
-            time_width, _ = get_text_size(draw, time_str, self.font)
+            _, _ = get_text_size(draw, time_str, self.font)
             draw.text((5, 2), time_str, font=self.font, fill=color)
 
         # Divider line
@@ -145,14 +145,14 @@ class ProgressBar:
 
         # Outer border
         draw_rectangle(draw, self.x, self.y, self.width, self.height,
-                      outline=color, border_width=1)
+                       outline=color, border_width=1)
 
         # Fill
         fill_width = int((self.width - 4) * progress / 100)
         if fill_width > 0:
             draw_rectangle(draw, self.x + 2, self.y + 2,
-                         fill_width, self.height - 4,
-                         outline=color, fill=color, border_width=0)
+                           fill_width, self.height - 4,
+                           outline=color, fill=color, border_width=0)
 
         # Percentage text
         if show_percentage:
@@ -221,11 +221,11 @@ class Button:
         # Button background
         if pressed:
             draw_rectangle(draw, self.x, self.y, self.width, self.height,
-                         outline=color, fill=color, border_width=2)
+                           outline=color, fill=color, border_width=2)
             text_color = 255  # White text on black background
         else:
             draw_rectangle(draw, self.x, self.y, self.width, self.height,
-                         outline=color, border_width=2)
+                           outline=color, border_width=2)
             text_color = color
 
         # Center text
@@ -391,7 +391,7 @@ class MessageBox:
         """
         # Box background (white with black border)
         draw_rectangle(draw, self.x, self.y, self.width, self.height,
-                      outline=color, fill=255, border_width=2)
+                       outline=color, fill=255, border_width=2)
 
         # Title
         title_width, title_height = get_text_size(draw, self.title, self.title_font)
@@ -401,8 +401,8 @@ class MessageBox:
 
         # Divider
         draw_horizontal_line(draw, title_y + title_height + 5,
-                           x1=self.x + 10, x2=self.x + self.width - 10,
-                           color=color, width=1)
+                             x1=self.x + 10, x2=self.x + self.width - 10,
+                             color=color, width=1)
 
         # Message (truncate if needed)
         message_y = title_y + title_height + 15
@@ -412,7 +412,7 @@ class MessageBox:
         message_width, _ = get_text_size(draw, message_text, self.message_font)
         message_x = self.x + (self.width - message_width) // 2
         draw.text((message_x, message_y), message_text,
-                 font=self.message_font, fill=color)
+                  font=self.message_font, fill=color)
 
 
 # ============================================================================
@@ -470,13 +470,13 @@ class Badge:
         if inverted:
             # Black background, white text
             draw_rectangle(draw, self.x, self.y, badge_width, badge_height,
-                         outline=color, fill=color, border_width=1)
+                           outline=color, fill=color, border_width=1)
             text_color = 255
         else:
             # White background, black text
             draw_rectangle(draw, self.x, self.y, badge_width, badge_height,
-                         outline=color, fill=255, border_width=1)
+                           outline=color, fill=255, border_width=1)
             text_color = color
 
         draw.text((self.x + self.padding, self.y + self.padding),
-                 self.text, font=self.font, fill=text_color)
+                  self.text, font=self.font, fill=text_color)

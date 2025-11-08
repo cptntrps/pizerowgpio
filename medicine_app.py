@@ -4,12 +4,23 @@ Medicine Tracker App - Refactored for SQLite
 E-ink display app for tracking medicine schedule and adherence
 """
 
-import sys, os, time
+from shared.app_utils import ConfigLoader, get_font, install_signal_handlers
+from db.medicine_db import MedicineDatabase
+from PIL import Image, ImageDraw, ImageFont
+from TP_lib import gt1151, epd2in13_V3
+import sys
+import os
+import time
 from datetime import datetime, date
-import logging, threading
+import logging
+import threading
 
 # Add library paths
-picdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/pic/2in13')
+picdir = os.path.join(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.realpath(__file__))),
+    'python/pic/2in13')
 fontdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/pic')
 libdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/lib')
 sys.path.append(libdir)
@@ -18,12 +29,8 @@ sys.path.append(libdir)
 project_root = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, project_root)
 
-from TP_lib import gt1151, epd2in13_V3
-from PIL import Image, ImageDraw, ImageFont
 
 # Import our new database and utilities
-from db.medicine_db import MedicineDatabase
-from shared.app_utils import ConfigLoader, get_font, install_signal_handlers
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -67,7 +74,8 @@ def mark_medicines_taken(medicines):
 
             # Log low stock warnings
             if result.get('low_stock'):
-                logger.warning(f"Low stock alert: {med['name']} - {result['pills_remaining']} pills remaining")
+                logger.warning(
+                    f"Low stock alert: {med['name']} - {result['pills_remaining']} pills remaining")
 
         return True
     except Exception as e:
@@ -132,16 +140,16 @@ def get_data_timestamp():
 def draw_pill_icon(draw, x, y, size=10):
     """Draw a simple pill icon"""
     # Capsule shape
-    draw.ellipse([x, y, x+size, y+size], outline=0, width=2)
-    draw.line([x+size//4, y, x+size//4, y+size], fill=0, width=1)
+    draw.ellipse([x, y, x + size, y + size], outline=0, width=2)
+    draw.line([x + size // 4, y, x + size // 4, y + size], fill=0, width=1)
 
 
 def draw_food_icon(draw, x, y, size=8):
     """Draw a simple fork/knife icon for 'with food'"""
     # Fork
-    draw.line([x, y, x, y+size], fill=0, width=1)
-    draw.line([x-1, y, x-1, y+size//2], fill=0, width=1)
-    draw.line([x+1, y, x+1, y+size//2], fill=0, width=1)
+    draw.line([x, y, x, y + size], fill=0, width=1)
+    draw.line([x - 1, y, x - 1, y + size // 2], fill=0, width=1)
+    draw.line([x + 1, y, x + 1, y + size // 2], fill=0, width=1)
 
 
 def draw_current_reminder(pending_meds, current_index=0):
@@ -366,7 +374,8 @@ def run_medicine_app(epd, gt_dev, gt_old, gt):
             current_timestamp = get_data_timestamp()
 
             if current_timestamp != last_known_timestamp:
-                logger.info(f"Data changed externally (timestamp: {current_timestamp}), refreshing display")
+                logger.info(
+                    f"Data changed externally (timestamp: {current_timestamp}), refreshing display")
                 last_known_timestamp = current_timestamp
                 pending = get_pending_medicines()
                 rotation_index = 0
@@ -461,7 +470,8 @@ def run_medicine_app(epd, gt_dev, gt_old, gt):
 
                 if pending and len(pending) > 1:
                     rotation_index = (rotation_index + 1) % len(pending)
-                    logger.info(f"Single click - cycling to medicine {rotation_index + 1}/{len(pending)}")
+                    logger.info(
+                        f"Single click - cycling to medicine {rotation_index + 1}/{len(pending)}")
                     image = draw_current_reminder(pending, rotation_index)
                     epd.displayPartial(epd.getbuffer(image))
                 elif pending and len(pending) == 1:
@@ -486,7 +496,7 @@ def cleanup():
     logger.info("Cleaning up medicine app...")
     try:
         db.close()
-    except:
+    except BaseException:
         pass
 
 

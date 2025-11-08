@@ -14,6 +14,7 @@ Comprehensive tests verifying:
 Tests are designed to run without hardware dependencies.
 """
 
+from PIL import Image, ImageDraw
 import unittest
 import sys
 import os
@@ -23,8 +24,6 @@ from io import StringIO
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
-
-from PIL import Image, ImageDraw
 
 
 # ============================================================================
@@ -67,6 +66,7 @@ class MockEPD:
 
 class MockGTDevice:
     """Mock touch device"""
+
     def __init__(self):
         self.X = [0]
         self.Y = [0]

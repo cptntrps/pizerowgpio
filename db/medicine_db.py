@@ -3,13 +3,13 @@ Medicine Database Abstraction Layer
 Provides ACID-compliant database operations for medicine tracking
 """
 
-import sqlite3
-import os
 import logging
-from contextlib import contextmanager
-from datetime import datetime, date, time
-from typing import List, Dict, Optional, Tuple
+import os
+import sqlite3
 import threading
+from contextlib import contextmanager
+from datetime import date, datetime
+from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -174,8 +174,8 @@ class MedicineDatabase:
             sqlite3.IntegrityError: If medicine_id already exists
         """
         required_fields = ['id', 'name', 'dosage', 'time_window', 'window_start',
-                          'window_end', 'days', 'pills_remaining', 'pills_per_dose',
-                          'low_stock_threshold']
+                           'window_end', 'days', 'pills_remaining', 'pills_per_dose',
+                           'low_stock_threshold']
 
         for field in required_fields:
             if field not in medicine_data:
@@ -313,7 +313,10 @@ class MedicineDatabase:
             logger.error(f"Failed to delete medicine: {e}")
             raise
 
-    def get_pending_medicines(self, check_date: date = None, check_time: datetime = None) -> List[Dict]:
+    def get_pending_medicines(
+            self,
+            check_date: date = None,
+            check_time: datetime = None) -> List[Dict]:
         """Get medicines due at specified time with reminder window
 
         Args:
@@ -361,7 +364,8 @@ class MedicineDatabase:
             window_start_parts = med['window_start'].split(':')
             window_end_parts = med['window_end'].split(':')
 
-            start_mins = int(window_start_parts[0]) * 60 + int(window_start_parts[1]) - reminder_window
+            start_mins = int(window_start_parts[0]) * 60 + \
+                int(window_start_parts[1]) - reminder_window
             end_mins = int(window_end_parts[0]) * 60 + int(window_end_parts[1]) + reminder_window
 
             if start_mins <= current_mins <= end_mins:
@@ -374,7 +378,7 @@ class MedicineDatabase:
         return pending
 
     def mark_medicine_taken(self, medicine_id: str, time_window: str = None,
-                           taken_date: date = None, timestamp: datetime = None) -> Dict:
+                            taken_date: date = None, timestamp: datetime = None) -> Dict:
         """Mark medicine as taken and decrement pill count (ACID transaction)
 
         Args:
@@ -479,7 +483,7 @@ class MedicineDatabase:
         return (row['taken'] or 0, row['total'] or 0)
 
     def get_tracking_history(self, medicine_id: str = None,
-                            start_date: date = None, end_date: date = None) -> List[Dict]:
+                             start_date: date = None, end_date: date = None) -> List[Dict]:
         """Get tracking history
 
         Args:

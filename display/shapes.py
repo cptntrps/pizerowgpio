@@ -6,7 +6,7 @@ Provides consistent, high-level functions for drawing basic shapes.
 Reduces boilerplate and ensures consistent styling.
 """
 
-from typing import Optional, Tuple
+from typing import Optional
 from PIL import ImageDraw
 from .canvas import DISPLAY_WIDTH, DISPLAY_HEIGHT
 
@@ -338,7 +338,7 @@ def draw_divider(
         >>> draw_divider(draw, 18)  # Divider below header
     """
     draw_horizontal_line(draw, y, x1=padding, x2=DISPLAY_WIDTH - padding,
-                        color=color, width=width)
+                         color=color, width=width)
 
 
 def draw_cross(

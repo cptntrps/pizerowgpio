@@ -4,6 +4,12 @@ Disney Magic Kingdom Wait Times for E-Paper Display (REFACTORED)
 Shows current ride wait times with themed backgrounds
 Optimized for e-paper refresh limitations with shared utilities
 """
+from display.components import MessageBox
+from display.text import draw_centered_text, truncate_text_to_width
+from display.fonts import get_font_preset
+from display.touch_handler import TouchHandler, cleanup_touch_state, check_exit_requested
+from shared.app_utils import ConfigLoader, setup_logging, setup_paths
+from TP_lib import gt1151, epd2in13_V3
 import sys
 import os
 import time
@@ -15,14 +21,13 @@ from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 
 # Setup paths for imports
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/lib'))
+sys.path.append(
+    os.path.join(
+        os.path.dirname(
+            os.path.dirname(
+                os.path.realpath(__file__))),
+        'python/lib'))
 
-from TP_lib import gt1151, epd2in13_V3
-from shared.app_utils import ConfigLoader, setup_logging, setup_paths
-from display.touch_handler import TouchHandler, cleanup_touch_state, check_exit_requested
-from display.fonts import get_font_preset
-from display.text import draw_centered_text, truncate_text_to_width
-from display.components import MessageBox
 
 # Setup paths and logging
 setup_paths()
@@ -300,7 +305,8 @@ def run_disney_app(epd, gt_dev, gt_old, gt):
                 current_ride = rides[ride_index]
 
                 # Check if new ride needs scrolling
-                bbox = ImageDraw.Draw(dummy_img).textbbox((0, 0), current_ride['name'], font=f_name)
+                bbox = ImageDraw.Draw(dummy_img).textbbox(
+                    (0, 0), current_ride['name'], font=f_name)
                 needs_scroll = (bbox[2] - bbox[0]) > 230
 
                 # Re-fetch every 20 rides

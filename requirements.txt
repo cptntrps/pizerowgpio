@@ -1,17 +1,24 @@
 # Pi Zero 2W Medicine Tracker - Python Dependencies
 # Install with: pip3 install -r requirements.txt
 
-# Web Framework
-Flask>=2.0.0
+# Web Framework (updated to 3.0+ for security patches)
+Flask>=3.0.0,<4.0.0
 
-# Image Processing
-Pillow>=8.0.0
+# Image Processing (updated to 10.0+ for security patches)
+Pillow>=10.0.0,<11.0.0
 
-# GPIO Control
-gpiozero>=1.6.2
+# GPIO Control (updated version)
+gpiozero>=2.0.0,<3.0.0
 
-# Data Validation
-marshmallow>=3.14.0
+# Data Validation (updated version)
+marshmallow>=3.20.0,<4.0.0
+
+# Security & Configuration Management
+Flask-Talisman>=1.1.0  # Security headers
+Flask-Limiter>=3.5.0   # Rate limiting
+Flask-CORS>=4.0.0      # CORS handling
+Flask-JWT-Extended>=4.5.0  # JWT authentication
+python-dotenv>=1.0.0   # Environment variables management
 
 # Database (built-in with Python 3)
 # sqlite3

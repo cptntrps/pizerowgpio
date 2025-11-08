@@ -20,19 +20,9 @@ Refactored to use:
 Code reduction: ~289 → 175 lines (39% reduction)
 """
 
-import sys
-import os
-import time
-import logging
-from typing import Optional
-
-# Setup paths for TP library and fonts
-sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/lib'))
-
-from PIL import Image, ImageDraw
-from TP_lib import gt1151, epd2in13_V3
-
-# Import shared utilities
+from display.icons import draw_tomato_icon
+from display.fonts import get_font_preset
+from display.touch_handler import TouchHandler, cleanup_touch_state as handler_cleanup
 from shared.app_utils import (
     setup_logging,
     ConfigLoader,
@@ -44,11 +34,26 @@ from shared.app_utils import (
     check_exit_requested,
     cleanup_touch_state
 )
+from TP_lib import gt1151, epd2in13_V3
+from PIL import Image, ImageDraw
+import sys
+import os
+import time
+import logging
+from typing import Optional
+
+# Setup paths for TP library and fonts
+sys.path.append(
+    os.path.join(
+        os.path.dirname(
+            os.path.dirname(
+                os.path.realpath(__file__))),
+        'python/lib'))
+
+
+# Import shared utilities
 
 # Import display components and icons
-from display.touch_handler import TouchHandler, cleanup_touch_state as handler_cleanup
-from display.fonts import get_font_preset
-from display.icons import draw_tomato_icon
 
 
 # ============================================================================
@@ -159,7 +164,7 @@ def play_start_animation(epd, touch_handler: TouchHandler) -> None:
 
             # Draw animated tomato in center
             draw_tomato_icon(draw, DISPLAY_WIDTH // 2, DISPLAY_HEIGHT // 2,
-                           frame=frame, size=50, color=0)
+                             frame=frame, size=50, color=0)
 
             # Add "WORK" label below
             f_small = get_font_preset('small')
@@ -252,8 +257,8 @@ def run_pomodoro_app(epd, gt_dev, gt_old, gt) -> None:
 
             # Check for position changes to detect touch events
             position_changed = (gt_old.X[0] != gt_dev.X[0] or
-                              gt_old.Y[0] != gt_dev.Y[0] or
-                              gt_old.S[0] != gt_dev.S[0])
+                                gt_old.Y[0] != gt_dev.Y[0] or
+                                gt_old.S[0] != gt_dev.S[0])
 
             if not position_changed:
                 time.sleep(0.05)

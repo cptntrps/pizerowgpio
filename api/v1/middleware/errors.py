@@ -7,12 +7,10 @@ responses across all endpoints and proper logging of errors.
 """
 
 import logging
-import traceback
 import sqlite3
 from datetime import datetime
 from functools import wraps
 from flask import jsonify, request
-from marshmallow import ValidationError
 
 logger = logging.getLogger(__name__)
 

@@ -4,6 +4,7 @@ Run the Flask API Server
 Development server for testing the RESTful API
 """
 
+from api import create_app
 import os
 import sys
 import logging
@@ -11,7 +12,6 @@ import logging
 # Add project root to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from api import create_app
 
 # Configure logging
 logging.basicConfig(

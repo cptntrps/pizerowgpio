@@ -5,6 +5,12 @@ Provides system reboot confirmation dialog with touch-enabled buttons.
 Uses shared utilities and display components to eliminate code duplication.
 """
 
+from display.components import Button
+from display.fonts import get_font_preset
+from display.touch_handler import TouchHandler
+from shared.app_utils import setup_logging, check_exit_requested, cleanup_touch_state
+from PIL import Image, ImageDraw
+from TP_lib import gt1151, epd2in13_V3
 import sys
 import os
 import time
@@ -15,13 +21,6 @@ import logging
 libdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/lib')
 sys.path.append(libdir)
 
-from TP_lib import gt1151, epd2in13_V3
-from PIL import Image, ImageDraw
-
-from shared.app_utils import setup_logging, check_exit_requested, cleanup_touch_state
-from display.touch_handler import TouchHandler
-from display.fonts import get_font_preset
-from display.components import Button
 
 logger = setup_logging('reboot_app', log_to_file=True)
 
@@ -57,7 +56,7 @@ def draw_reboot_confirm(epd, gt_dev, gt_old, gt):
             gt.GT_Scan(gt_dev, gt_old)
 
             if (gt_old.X[0] == gt_dev.X[0] and gt_old.Y[0] == gt_dev.Y[0] and
-                gt_old.S[0] == gt_dev.S[0]):
+                    gt_old.S[0] == gt_dev.S[0]):
                 time.sleep(0.01)
                 continue
 

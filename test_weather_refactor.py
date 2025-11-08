@@ -23,8 +23,10 @@ sys.path.insert(0, project_root)
 # TEST UTILITIES
 # ============================================================================
 
+
 class MockDisplayDriver:
     """Mock EPD display driver"""
+
     def __init__(self):
         self.buffer_data = None
         self.display_calls = []
@@ -43,6 +45,7 @@ class MockDisplayDriver:
 
 class MockTouchDevice:
     """Mock touch device state"""
+
     def __init__(self):
         self.Touch = 0
         self.TouchpointFlag = 0
@@ -54,6 +57,7 @@ class MockTouchDevice:
 
 class MockTouchDriver:
     """Mock touch driver"""
+
     def __init__(self):
         self.INT = 1  # GPIO pin
         self.scan_count = 0

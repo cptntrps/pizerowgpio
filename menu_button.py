@@ -1,20 +1,34 @@
 #!/usr/bin/python3
-import sys, os, time, threading
+import medicine_app
+import mbta_app
+import disney_app
+import pomodoro_app
+import flights_app
+import reboot_app
+import weather_cal_app
+import forbidden_app
+import logging
+from gpiozero import Button
+from PIL import Image, ImageDraw, ImageFont
+from TP_lib import epd2in13_V4
+import sys
+import os
+import time
+import threading
 from datetime import datetime
-picdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "python/pic/2in13")
+picdir = os.path.join(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.realpath(__file__))),
+    "python/pic/2in13")
 fontdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "python/pic")
 libdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "python/lib")
 sys.path.append(libdir)
 
-from TP_lib import epd2in13_V4
-from PIL import Image, ImageDraw, ImageFont
-from gpiozero import Button
-import logging
 
 logging.basicConfig(level=logging.INFO)
 
 # Import apps
-import forbidden_app, weather_cal_app, reboot_app, flights_app, pomodoro_app, disney_app, mbta_app, medicine_app
 
 # Menu items
 APPS = [
@@ -51,29 +65,30 @@ epd.Clear(0xFF)
 # Button on GPIO 3
 pisugar_button = Button(3, pull_up=True, bounce_time=0.1)
 
+
 def draw_menu(selected_index):
     """Draw text menu with selection highlight"""
     img = Image.new("1", (250, 122), 255)
     draw = ImageDraw.Draw(img)
-    
+
     try:
         font_title = ImageFont.truetype(os.path.join(fontdir, "Roboto-Regular.ttf"), 10)
         font_item = ImageFont.truetype(os.path.join(fontdir, "Roboto-Regular.ttf"), 12)
-    except:
+    except BaseException:
         font_title = ImageFont.load_default()
         font_item = ImageFont.load_default()
-    
+
     # Title
     draw.text((5, 2), "PiZero Menu (Button Control)", font=font_title, fill=0)
     draw.line([(0, 14), (250, 14)], fill=0, width=1)
-    
+
     # Menu items
     y_start = 16
     item_height = 12
-    
+
     for i, app in enumerate(APPS):
         y_pos = y_start + (i * item_height)
-        
+
         if i == selected_index:
             draw.rectangle([(2, y_pos), (248, y_pos + item_height - 1)], fill=0)
             text_color = 255
@@ -81,13 +96,14 @@ def draw_menu(selected_index):
         else:
             text_color = 0
             prefix = " "
-        
+
         draw.text((5, y_pos + 1), f"{prefix} {app['name']}", font=font_item, fill=text_color)
-    
+
     # Instructions
     draw.text((40, 108), "Click: Next  |  Hold 2s: Select", font=font_title, fill=0)
-    
+
     return img
+
 
 def button_pressed():
     """Called when button is pressed"""
@@ -96,38 +112,40 @@ def button_pressed():
     hold_processed = False
     logging.info(f"Button pressed (in_app={in_app})")
 
+
 def button_released():
     """Called when button is released"""
     global button_press_start, current_selection, hold_processed
     global global_GT_Dev, in_app
-    
+
     if button_press_start is None:
         return
-    
+
     hold_duration = time.time() - button_press_start
     button_press_start = None
-    
+
     logging.info(f"Button released after {hold_duration:.2f}s")
-    
+
     if hold_processed:
         logging.info("Hold already processed, ignoring release")
         return
-    
+
     # If in app, short press triggers touch event
     if in_app and hold_duration < 2.0:
         if global_GT_Dev:
             global_GT_Dev.TouchpointFlag = 1
             logging.info("Button click in app")
         return
-    
+
     # Short press in menu: navigate down with PARTIAL refresh (fast!)
     if hold_duration < 2.0 and not in_app:
         current_selection = (current_selection + 1) % len(APPS)
         logging.info(f"Navigate to: {APPS[current_selection]['name']}")
-        
+
         # Use partial refresh for fast navigation
         image = draw_menu(current_selection)
         epd.displayPartial(epd.getbuffer(image))
+
 
 def monitor_button_hold():
     """Background thread monitoring button hold"""
@@ -141,7 +159,8 @@ def monitor_button_hold():
 
             # Debug logging every 0.2s during a hold (more frequent)
             if hold_duration >= 0.2 and int(hold_duration * 100) % 20 == 0:
-                logging.info(f"HOLD DEBUG: duration={hold_duration:.2f}s, is_pressed={is_pressed}, in_app={in_app}, hold_processed={hold_processed}")
+                logging.info(
+                    f"HOLD DEBUG: duration={hold_duration:.2f}s, is_pressed={is_pressed}, in_app={in_app}, hold_processed={hold_processed}")
 
             if is_pressed and hold_duration >= 2.0 and not hold_processed:
                 hold_processed = True
@@ -152,7 +171,8 @@ def monitor_button_hold():
                     if global_GT_Dev:
                         global_GT_Dev.exit_requested = True
                 else:
-                    logging.info(f"LAUNCH APP - {APPS[current_selection]['name']} (requesting launch)")
+                    logging.info(
+                        f"LAUNCH APP - {APPS[current_selection]['name']} (requesting launch)")
                     launch_requested = True
                     launch_app_index = current_selection
 
@@ -160,18 +180,19 @@ def monitor_button_hold():
 
         time.sleep(0.1)
 
+
 def launch_app(app):
     """Launch selected app"""
     global in_app, exit_requested
     global global_GT_Dev, global_GT_Old, global_gt
-    
+
     in_app = True
     exit_requested = False
-    
+
     # Full refresh for app launch
     epd.init(epd.FULL_UPDATE)
     epd.Clear(0xFF)
-    
+
     try:
         # Create dummy touch objects
         class DummyTouch:
@@ -182,28 +203,28 @@ def launch_app(app):
                 self.TouchpointFlag = 0
                 self.Touch = 0
                 self.exit_requested = False  # Signal for app to exit
-        
+
         class DummyGT:
             def __init__(self):
                 self.INT = 27
-            
+
             def digital_read(self, pin):
                 return 1
-            
+
             def GT_Scan(self, gt_dev, gt_old):
                 pass
-            
+
             def GT_Init(self):
                 pass
-        
+
         GT_Dev = DummyTouch()
         GT_Old = DummyTouch()
         gt = DummyGT()
-        
+
         global_GT_Dev = GT_Dev
         global_GT_Old = GT_Old
         global_gt = gt
-        
+
         # Launch app
         if app["func"] == "weather":
             weather_cal_app.run_weather_app(epd, GT_Dev, GT_Old, gt)
@@ -221,22 +242,23 @@ def launch_app(app):
             reboot_app.run_reboot_app(epd, GT_Dev, GT_Old, gt)
         elif app["func"] == "forbidden":
             forbidden_app.run_forbidden_app(epd, GT_Dev, GT_Old, gt)
-    
+
     except Exception as e:
         logging.error(f"App error: {e}")
-    
+
     finally:
         in_app = False
         exit_requested = False
-        
+
         # Return to menu with full refresh to clear any ghosting
         epd.init(epd.FULL_UPDATE)
         epd.Clear(0xFF)
         image = draw_menu(current_selection)
         epd.displayPartBaseImage(epd.getbuffer(image))
         epd.init(epd.PART_UPDATE)  # Switch to partial for navigation
-        
+
         logging.info("Returned to menu")
+
 
 # Main
 if __name__ == "__main__":
@@ -265,10 +287,10 @@ if __name__ == "__main__":
                 launch_app(app_to_launch)
 
             time.sleep(0.1)
-    
+
     except KeyboardInterrupt:
         logging.info("Menu interrupted")
-    
+
     finally:
         menu_running = False
         epd.sleep()

@@ -4,22 +4,22 @@ Test script to verify migration and new database functionality
 Run this before deploying to ensure everything works
 """
 
+from datetime import datetime, date
+from shared.validation import validate_medicine
+from shared.app_utils import ConfigLoader
+from db.medicine_db import MedicineDatabase
 import os
 import sys
 
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from db.medicine_db import MedicineDatabase
-from shared.app_utils import ConfigLoader
-from shared.validation import validate_medicine
-from datetime import datetime, date
 
 def test_database_connection():
     """Test 1: Database connection"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 1: Database Connection")
-    print("="*70)
+    print("=" * 70)
 
     try:
         db = MedicineDatabase(db_path='/home/user/pizerowgpio/medicine.db')
@@ -33,9 +33,9 @@ def test_database_connection():
 
 def test_get_medicines(db):
     """Test 2: Get all medicines"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 2: Get All Medicines")
-    print("="*70)
+    print("=" * 70)
 
     try:
         medicines = db.get_all_medicines()
@@ -55,9 +55,9 @@ def test_get_medicines(db):
 
 def test_pending_medicines(db):
     """Test 3: Get pending medicines"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 3: Get Pending Medicines")
-    print("="*70)
+    print("=" * 70)
 
     try:
         now = datetime.now()
@@ -76,9 +76,9 @@ def test_pending_medicines(db):
 
 def test_adherence_stats(db):
     """Test 4: Get today's stats"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 4: Today's Adherence Statistics")
-    print("="*70)
+    print("=" * 70)
 
     try:
         taken, total = db.get_today_stats()
@@ -96,9 +96,9 @@ def test_adherence_stats(db):
 
 def test_low_stock(db):
     """Test 5: Low stock check"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 5: Low Stock Medicines")
-    print("="*70)
+    print("=" * 70)
 
     try:
         low_stock = db.get_low_stock_medicines()
@@ -119,9 +119,9 @@ def test_low_stock(db):
 
 def test_config_loader():
     """Test 6: Config loading"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 6: Configuration Loading")
-    print("="*70)
+    print("=" * 70)
 
     try:
         config = ConfigLoader()
@@ -138,9 +138,9 @@ def test_config_loader():
 
 def test_validation():
     """Test 7: Input validation"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST 7: Input Validation")
-    print("="*70)
+    print("=" * 70)
 
     # Valid medicine
     valid_medicine = {
@@ -185,9 +185,9 @@ def test_validation():
 
 def main():
     """Run all tests"""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  Pi Zero 2W Medicine Tracker - System Test Suite")
-    print("="*70)
+    print("=" * 70)
 
     results = []
 
@@ -218,9 +218,9 @@ def main():
     results.append(("Input Validation", test_validation()))
 
     # Summary
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("TEST SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     passed = sum(1 for _, result in results if result)
     total = len(results)
@@ -229,15 +229,15 @@ def main():
         status = "✓ PASS" if result else "❌ FAIL"
         print(f"  {status}: {test_name}")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     if passed == total:
         print(f"✅ ALL TESTS PASSED ({passed}/{total})")
-        print("="*70)
+        print("=" * 70)
         print("\n✨ System is ready for deployment!")
         sys.exit(0)
     else:
         print(f"❌ SOME TESTS FAILED ({passed}/{total} passed)")
-        print("="*70)
+        print("=" * 70)
         print("\n⚠️  Please fix failing tests before deployment")
         sys.exit(1)
 

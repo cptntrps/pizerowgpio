@@ -15,6 +15,15 @@ Features:
 Refactoring: 171 -> 119 lines (30% reduction)
 """
 
+from display.components import StatusBar
+from display.fonts import get_font_preset
+from display.touch_handler import TouchHandler
+from shared.app_utils import (
+    ConfigLoader, setup_logging, check_exit_requested,
+    cleanup_touch_state, PeriodicTimer, safe_execute
+)
+from PIL import Image, ImageDraw, ImageFont
+from TP_lib import gt1151, epd2in13_V3
 import sys
 import os
 import time
@@ -31,25 +40,20 @@ project_root = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, project_root)
 
 # Import Pi Zero display driver (required for hardware)
-picdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/pic/2in13')
+picdir = os.path.join(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.realpath(__file__))),
+    'python/pic/2in13')
 fontdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/pic')
 libdir = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'python/lib')
 sys.path.append(libdir)
 
-from TP_lib import gt1151, epd2in13_V3
-from PIL import Image, ImageDraw, ImageFont
 
 # ============================================================================
 # IMPORTS - Shared Utilities & Display Components
 # ============================================================================
 
-from shared.app_utils import (
-    ConfigLoader, setup_logging, check_exit_requested,
-    cleanup_touch_state, PeriodicTimer, safe_execute
-)
-from display.touch_handler import TouchHandler
-from display.fonts import get_font_preset
-from display.components import StatusBar
 
 # ============================================================================
 # LOGGER & CONFIGURATION
@@ -58,13 +62,15 @@ from display.components import StatusBar
 logger = setup_logging("weather_app", log_to_file=True)
 
 config = ConfigLoader.load()
-WEATHER_CONFIG = ConfigLoader.get_section("weather", {"location": "London", "update_interval": 300})
+WEATHER_CONFIG = ConfigLoader.get_section(
+    "weather", {"location": "London", "update_interval": 300})
 LOCATION = WEATHER_CONFIG.get("location", "London")
 UPDATE_INTERVAL = WEATHER_CONFIG.get("update_interval", 300)
 
 # ============================================================================
 # WEATHER DATA FETCHING
 # ============================================================================
+
 
 def get_weather():
     """Fetch current weather from wttr.in API
@@ -108,7 +114,7 @@ def draw_weather_icon(draw, condition, x, y):
 
     # Sun/Clear
     if 'sun' in condition_lower or 'clear' in condition_lower:
-        draw.ellipse([x+10, y+10, x+30, y+30], outline=0, width=2)
+        draw.ellipse([x + 10, y + 10, x + 30, y + 30], outline=0, width=2)
         for angle in [0, 45, 90, 135, 180, 225, 270, 315]:
             rad = math.radians(angle)
             x1, y1 = x + 20 + 15 * math.cos(rad), y + 20 + 15 * math.sin(rad)
@@ -117,27 +123,27 @@ def draw_weather_icon(draw, condition, x, y):
 
     # Cloud
     elif 'cloud' in condition_lower:
-        draw.ellipse([x+5, y+15, x+20, y+25], outline=0, width=2)
-        draw.ellipse([x+15, y+10, x+30, y+20], outline=0, width=2)
-        draw.ellipse([x+25, y+15, x+40, y+25], outline=0, width=2)
+        draw.ellipse([x + 5, y + 15, x + 20, y + 25], outline=0, width=2)
+        draw.ellipse([x + 15, y + 10, x + 30, y + 20], outline=0, width=2)
+        draw.ellipse([x + 25, y + 15, x + 40, y + 25], outline=0, width=2)
 
     # Rain/Drizzle
     elif 'rain' in condition_lower or 'drizzle' in condition_lower:
         for cx, cy in [(10, 12), (22, 12), (34, 12)]:
-            draw.ellipse([x+cx-5, y+cy-5, x+cx+5, y+cy+5], outline=0, width=2)
-        draw.line([x+10, y+25, x+8, y+32], fill=0, width=2)
-        draw.line([x+22, y+25, x+20, y+32], fill=0, width=2)
-        draw.line([x+34, y+25, x+32, y+32], fill=0, width=2)
+            draw.ellipse([x + cx - 5, y + cy - 5, x + cx + 5, y + cy + 5], outline=0, width=2)
+        draw.line([x + 10, y + 25, x + 8, y + 32], fill=0, width=2)
+        draw.line([x + 22, y + 25, x + 20, y + 32], fill=0, width=2)
+        draw.line([x + 34, y + 25, x + 32, y + 32], fill=0, width=2)
 
     # Snow
     elif 'snow' in condition_lower:
-        draw.line([x+20, y+10, x+20, y+30], fill=0, width=2)
-        draw.line([x+10, y+20, x+30, y+20], fill=0, width=2)
-        draw.line([x+13, y+13, x+27, y+27], fill=0, width=2)
-        draw.line([x+27, y+13, x+13, y+27], fill=0, width=2)
+        draw.line([x + 20, y + 10, x + 20, y + 30], fill=0, width=2)
+        draw.line([x + 10, y + 20, x + 30, y + 20], fill=0, width=2)
+        draw.line([x + 13, y + 13, x + 27, y + 27], fill=0, width=2)
+        draw.line([x + 27, y + 13, x + 13, y + 27], fill=0, width=2)
 
     else:
-        draw.text((x+15, y+10), "?", fill=0)
+        draw.text((x + 15, y + 10), "?", fill=0)
 
 
 # ============================================================================
@@ -242,7 +248,7 @@ def run_weather_app(epd, gt_dev, gt_old, gt):
             # Check for position changes (ignore if no touch change)
             if (gt_old.X[0] == gt_dev.X[0] and
                 gt_old.Y[0] == gt_dev.Y[0] and
-                gt_old.S[0] == gt_dev.S[0]):
+                    gt_old.S[0] == gt_dev.S[0]):
                 time.sleep(0.1)
                 continue
 

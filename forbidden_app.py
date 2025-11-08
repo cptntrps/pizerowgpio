@@ -1,16 +1,16 @@
 #!/usr/bin/python3
 """Forbidden App - Shows locked message with shared utilities."""
 
+from shared.app_utils import setup_logging, ConfigLoader
+from display.touch_handler import TouchHandler, check_exit_requested
+from display import canvas, fonts, text
+from TP_lib import gt1151, epd2in13_V3
 import sys
 import os
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'python/lib'))
 
-from TP_lib import gt1151, epd2in13_V3
-from display import canvas, fonts, text
-from display.touch_handler import TouchHandler, check_exit_requested
-from shared.app_utils import setup_logging, ConfigLoader
 
 logger = setup_logging("forbidden_app")
 

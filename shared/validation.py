@@ -252,7 +252,7 @@ def validate_time_format(time_str: str) -> bool:
     try:
         hours, minutes = map(int, time_str.split(':'))
         return 0 <= hours <= 23 and 0 <= minutes <= 59
-    except:
+    except BaseException:
         return False
 
 
@@ -268,7 +268,7 @@ def validate_date_format(date_str: str) -> bool:
     try:
         datetime.strptime(date_str, '%Y-%m-%d')
         return True
-    except:
+    except BaseException:
         return False
 
 

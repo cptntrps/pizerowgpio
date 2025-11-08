@@ -158,7 +158,7 @@ class TouchHandler:
                     self.gt_dev.Touch = 1
                 else:
                     self.gt_dev.Touch = 0
-            except Exception as e:
+            except Exception as e:  # pylint: disable=broad-exception-caught
                 self.on_error(e)
 
             time.sleep(self.interval)
@@ -169,7 +169,7 @@ class TouchHandler:
         Args:
             error: Exception that occurred
         """
-        logger.error(f"Touch detection error: {error}")
+        logger.error("Touch detection error: %s", error)
 
     def __enter__(self):
         """Context manager entry - start thread"""

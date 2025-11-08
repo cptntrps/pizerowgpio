@@ -1,0 +1,141 @@
+{
+  "medicines": [
+    {
+      "id": "med_001",
+      "name": "Vitamin D",
+      "dosage": "2000 IU",
+      "time_window": "morning",
+      "window_start": "06:00",
+      "window_end": "12:00",
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "with_food": true,
+      "notes": "Take with breakfast",
+      "active": true,
+      "color_code": "yellow",
+      "pills_remaining": 59,
+      "pills_per_dose": 1,
+      "low_stock_threshold": 10
+    },
+    {
+      "id": "med_1762467778545",
+      "name": "Vyvanse",
+      "dosage": "30mg",
+      "time_window": "morning",
+      "with_food": true,
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "notes": "",
+      "pills_remaining": 17,
+      "pills_per_dose": 1,
+      "low_stock_threshold": 7,
+      "active": true,
+      "window_start": "06:00",
+      "window_end": "10:00"
+    },
+    {
+      "id": "med_1762467794570",
+      "name": "Buproprion XL",
+      "dosage": "150mg",
+      "time_window": "morning",
+      "with_food": false,
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "notes": "",
+      "pills_remaining": 45,
+      "pills_per_dose": 1,
+      "low_stock_threshold": 7,
+      "active": true,
+      "window_start": "06:00",
+      "window_end": "10:00"
+    },
+    {
+      "id": "med_1762529941070",
+      "name": "Test Medicine",
+      "dosage": "500mg",
+      "time_window": "afternoon",
+      "with_food": false,
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "notes": "",
+      "pills_remaining": 30,
+      "pills_per_dose": 1,
+      "low_stock_threshold": 10,
+      "active": true,
+      "window_start": "12:00",
+      "window_end": "18:00"
+    }
+  ],
+  "tracking": {
+    "2025-11-06": {
+      "med_1762467778545_morning": {
+        "taken": true,
+        "timestamp": "2025-11-06T19:36:43"
+      },
+      "med_1762467794570_morning": {
+        "taken": true,
+        "timestamp": "2025-11-06T19:36:56"
+      }
+    },
+    "2025-11-07": {
+      "med_1762467778545_morning": {
+        "taken": true,
+        "timestamp": "2025-11-07T08:46:17"
+      },
+      "med_1762467794570_morning": {
+        "taken": true,
+        "timestamp": "2025-11-07T08:46:31"
+      },
+      "med_001_morning": {
+        "taken": true,
+        "timestamp": "2025-11-07T09:01:31"
+      }
+    }
+  },
+  "time_windows": {
+    "morning": {
+      "start": "06:00",
+      "end": "12:00"
+    },
+    "afternoon": {
+      "start": "12:00",
+      "end": "18:00"
+    },
+    "evening": {
+      "start": "18:00",
+      "end": "22:00"
+    },
+    "night": {
+      "start": "22:00",
+      "end": "23:59"
+    }
+  }
+}

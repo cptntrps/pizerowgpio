@@ -1,11 +1,8 @@
 #!/usr/bin/python3
 import medicine_app
-import mbta_app
 import disney_app
-import pomodoro_app
 import flights_app
 import reboot_app
-import weather_cal_app
 import forbidden_app
 import logging
 from gpiozero import Button
@@ -32,14 +29,11 @@ logging.basicConfig(level=logging.INFO)
 
 # Menu items
 APPS = [
-    {"name": "Weather & Calendar", "func": "weather"},
-    {"name": "Flights Above Me", "func": "flights"},
-    {"name": "MBTA Trains", "func": "mbta"},
-    {"name": "Disney Wait Times", "func": "disney"},
-    {"name": "Pomodoro Timer", "func": "pomodoro"},
     {"name": "Medicine Tracker", "func": "medicine"},
-    {"name": "Reboot System", "func": "reboot"},
-    {"name": "Sai Curioso", "func": "forbidden"}
+    {"name": "Disney Wait Times", "func": "disney"},
+    {"name": "Flights Above Me", "func": "flights"},
+    {"name": "Sai Curioso", "func": "forbidden"},
+    {"name": "Reboot System", "func": "reboot"}
 ]
 
 # Global state
@@ -226,22 +220,16 @@ def launch_app(app):
         global_gt = gt
 
         # Launch app
-        if app["func"] == "weather":
-            weather_cal_app.run_weather_app(epd, GT_Dev, GT_Old, gt)
-        elif app["func"] == "flights":
-            flights_app.run_flights_app(epd, GT_Dev, GT_Old, gt)
-        elif app["func"] == "mbta":
-            mbta_app.run_mbta_app(epd, GT_Dev, GT_Old, gt)
+        if app["func"] == "medicine":
+            medicine_app.run_medicine_app(epd, GT_Dev, GT_Old, gt)
         elif app["func"] == "disney":
             disney_app.run_disney_app(epd, GT_Dev, GT_Old, gt)
-        elif app["func"] == "pomodoro":
-            pomodoro_app.run_pomodoro_app(epd, GT_Dev, GT_Old, gt)
-        elif app["func"] == "medicine":
-            medicine_app.run_medicine_app(epd, GT_Dev, GT_Old, gt)
-        elif app["func"] == "reboot":
-            reboot_app.run_reboot_app(epd, GT_Dev, GT_Old, gt)
+        elif app["func"] == "flights":
+            flights_app.run_flights_app(epd, GT_Dev, GT_Old, gt)
         elif app["func"] == "forbidden":
             forbidden_app.run_forbidden_app(epd, GT_Dev, GT_Old, gt)
+        elif app["func"] == "reboot":
+            reboot_app.run_reboot_app(epd, GT_Dev, GT_Old, gt)
 
     except Exception as e:
         logging.error(f"App error: {e}")

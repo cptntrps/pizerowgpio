@@ -201,6 +201,39 @@ class MarkTakenSchema(Schema):
             raise ValidationError('Cannot provide both medicine_id and medicine_ids')
 
 
+class SkipMedicineSchema(Schema):
+    """Schema for skipping a medicine dose"""
+
+    medicine_id = fields.Str(
+        required=True,
+        validate=validate.Regexp(
+            r'^med_.+$',
+            error='Medicine ID must be in format: med_*'
+        )
+    )
+
+    time_window = fields.Str(
+        validate=validate.OneOf(
+            ['morning', 'afternoon', 'evening', 'night'],
+            error='Time window must be one of: morning, afternoon, evening, night'
+        )
+    )
+
+    skip_date = fields.Date(format='%Y-%m-%d')
+
+    skip_reason = fields.Str(
+        validate=validate.OneOf(
+            ['Forgot', 'Side effects', 'Out of stock', 'Doctor advised', 'Other'],
+            error='Skip reason must be one of: Forgot, Side effects, Out of stock, Doctor advised, Other'
+        )
+    )
+
+    notes = fields.Str(
+        validate=validate.Length(max=500),
+        allow_none=True
+    )
+
+
 class ConfigUpdateSchema(Schema):
     """Schema for configuration updates"""
 
@@ -237,6 +270,22 @@ def validate_mark_taken(data: dict) -> dict:
         ValidationError: If validation fails
     """
     schema = MarkTakenSchema()
+    return schema.load(data)
+
+
+def validate_skip_medicine(data: dict) -> dict:
+    """Validate skip medicine data
+
+    Args:
+        data: Raw skip medicine data
+
+    Returns:
+        Validated skip medicine data
+
+    Raises:
+        ValidationError: If validation fails
+    """
+    schema = SkipMedicineSchema()
     return schema.load(data)
 
 

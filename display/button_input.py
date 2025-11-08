@@ -12,6 +12,7 @@ from enum import Enum
 from typing import Optional, Callable
 from gpiozero import Button
 import threading
+from .input_handler import InputHandler
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class ButtonEvent(Enum):
     LONG_PRESS = 2   # Hold (≥2s)
 
 
-class ButtonInputHandler:
+class ButtonInputHandler(InputHandler):
     """
     Simple button input handler with SHORT and LONG press detection
 
@@ -57,6 +58,8 @@ class ButtonInputHandler:
             bounce_time: Debounce time in seconds (default: 0.1)
             pull_up: Use pull-up resistor (default: True)
         """
+        super().__init__()
+
         self.gpio_pin = gpio_pin
         self.long_press_threshold = long_press_threshold
 
@@ -68,10 +71,6 @@ class ButtonInputHandler:
         self.long_press_triggered = False
         self.monitoring_thread: Optional[threading.Thread] = None
         self.running = False
-
-        # Event callbacks
-        self.on_short_press: Optional[Callable] = None
-        self.on_long_press: Optional[Callable] = None
 
         # Setup button event handlers
         self.button.when_pressed = self._on_button_pressed
@@ -128,6 +127,15 @@ class ButtonInputHandler:
 
             time.sleep(0.1)
 
+    @property
+    def mode(self) -> str:
+        """Get input mode identifier
+
+        Returns:
+            str: Always returns "button"
+        """
+        return "button"
+
     def start(self):
         """Start button monitoring thread"""
         if self.running:
@@ -135,6 +143,7 @@ class ButtonInputHandler:
             return
 
         self.running = True
+        self._is_active = True
         self.monitoring_thread = threading.Thread(
             target=self._monitor_long_press,
             daemon=True,
@@ -146,6 +155,7 @@ class ButtonInputHandler:
     def stop(self):
         """Stop button monitoring"""
         self.running = False
+        self._is_active = False
         if self.monitoring_thread:
             self.monitoring_thread.join(timeout=1.0)
         logger.info("Button monitoring stopped")

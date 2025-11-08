@@ -8,7 +8,7 @@ import os
 import sqlite3
 import threading
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -450,14 +450,174 @@ class MedicineDatabase:
             logger.error(f"Failed to mark medicine taken: {e}")
             raise
 
-    def get_today_stats(self, check_date: date = None) -> Tuple[int, int]:
+    def skip_medicine(self, medicine_id: str, time_window: str = None,
+                     skip_date: date = None, skip_timestamp: datetime = None,
+                     skip_reason: str = None) -> Dict:
+        """Mark medicine as skipped (not taken)
+
+        Args:
+            medicine_id: Medicine ID
+            time_window: Time window (defaults to medicine's time_window)
+            skip_date: Date skipped (defaults to today)
+            skip_timestamp: Timestamp (defaults to now)
+            skip_reason: Optional reason (Forgot, Side effects, Out of stock, Doctor advised, Other)
+
+        Returns:
+            Dict with medicine info and skip confirmation
+
+        Raises:
+            ValueError: If medicine not found
+        """
+        if skip_date is None:
+            skip_date = date.today()
+        if skip_timestamp is None:
+            skip_timestamp = datetime.now()
+
+        date_str = skip_date.strftime('%Y-%m-%d')
+        timestamp_str = skip_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+
+        try:
+            with self.transaction() as conn:
+                # Get medicine details with row lock
+                cursor = conn.execute(
+                    "SELECT * FROM medicines WHERE id = ?",
+                    (medicine_id,)
+                )
+                med = cursor.fetchone()
+
+                if med is None:
+                    raise ValueError(f"Medicine not found: {medicine_id}")
+
+                # Use medicine's time_window if not specified
+                if time_window is None:
+                    time_window = med['time_window']
+
+                # Insert or update tracking with skip status
+                # Note: We don't decrement pill count for skipped doses
+                # The timestamp field is required (NOT NULL), so we set it to skip_timestamp for consistency
+                conn.execute("""
+                    INSERT INTO tracking (medicine_id, date, time_window, taken, timestamp, skipped, skip_timestamp, skip_reason)
+                    VALUES (?, ?, ?, 0, ?, 1, ?, ?)
+                    ON CONFLICT(medicine_id, date, time_window)
+                    DO UPDATE SET skipped=1, skip_timestamp=excluded.skip_timestamp, skip_reason=excluded.skip_reason
+                """, (medicine_id, date_str, time_window, timestamp_str, timestamp_str, skip_reason))
+
+                logger.info(f"Marked medicine skipped: {medicine_id} at {timestamp_str} (reason: {skip_reason})")
+
+                return {
+                    'success': True,
+                    'medicine_id': medicine_id,
+                    'skip_date': date_str,
+                    'skip_timestamp': timestamp_str,
+                    'skip_reason': skip_reason,
+                    'time_window': time_window
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to mark medicine skipped: {e}")
+            raise
+
+    def get_skip_history(self, medicine_id: str = None,
+                        start_date: date = None, end_date: date = None) -> List[Dict]:
+        """Get skip history
+
+        Args:
+            medicine_id: Filter by medicine (optional)
+            start_date: Start date (optional)
+            end_date: End date (optional)
+
+        Returns:
+            List of skipped doses with reasons
+        """
+        conn = self._get_connection()
+
+        query = """
+        SELECT t.*, m.name, m.dosage
+        FROM tracking t
+        INNER JOIN medicines m ON t.medicine_id = m.id
+        WHERE t.skipped = 1
+        """
+
+        params = []
+
+        if medicine_id:
+            query += " AND t.medicine_id = ?"
+            params.append(medicine_id)
+
+        if start_date:
+            query += " AND t.date >= ?"
+            params.append(start_date.strftime('%Y-%m-%d'))
+
+        if end_date:
+            query += " AND t.date <= ?"
+            params.append(end_date.strftime('%Y-%m-%d'))
+
+        query += " ORDER BY t.date DESC, t.skip_timestamp DESC"
+
+        cursor = conn.execute(query, params)
+
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_adherence_detailed(self, start_date: date = None,
+                              end_date: date = None) -> Dict:
+        """Get detailed adherence stats including skips
+
+        Args:
+            start_date: Start date (optional)
+            end_date: End date (optional)
+
+        Returns:
+            Dict with: taken, skipped, missed, total, adherence_rate, skip_rate
+        """
+        conn = self._get_connection()
+
+        # Default to last 30 days if not specified
+        if end_date is None:
+            end_date = date.today()
+        if start_date is None:
+            start_date = end_date - timedelta(days=30)
+
+        date_str_start = start_date.strftime('%Y-%m-%d')
+        date_str_end = end_date.strftime('%Y-%m-%d')
+
+        query = """
+        SELECT
+            COUNT(*) as total,
+            SUM(CASE WHEN taken = 1 THEN 1 ELSE 0 END) as taken,
+            SUM(CASE WHEN skipped = 1 THEN 1 ELSE 0 END) as skipped,
+            SUM(CASE WHEN taken = 0 AND skipped = 0 THEN 1 ELSE 0 END) as missed
+        FROM tracking
+        WHERE date >= ? AND date <= ?
+        """
+
+        cursor = conn.execute(query, (date_str_start, date_str_end))
+        row = cursor.fetchone()
+
+        total = row['total'] or 0
+        taken = row['taken'] or 0
+        skipped = row['skipped'] or 0
+        missed = row['missed'] or 0
+
+        adherence_rate = (taken / total * 100) if total > 0 else 0.0
+        skip_rate = (skipped / total * 100) if total > 0 else 0.0
+
+        return {
+            'taken': taken,
+            'skipped': skipped,
+            'missed': missed,
+            'total': total,
+            'adherence_rate': round(adherence_rate, 1),
+            'skip_rate': round(skip_rate, 1)
+        }
+
+    def get_today_stats(self, check_date: date = None) -> Tuple[int, int, int]:
         """Get today's adherence statistics
 
         Args:
             check_date: Date to check (defaults to today)
 
         Returns:
-            Tuple of (medicines_taken, total_medicines)
+            Tuple of (medicines_taken, medicines_skipped, total_medicines)
         """
         if check_date is None:
             check_date = date.today()
@@ -470,7 +630,8 @@ class MedicineDatabase:
         query = """
         SELECT
             COUNT(DISTINCT m.id) as total,
-            COUNT(DISTINCT CASE WHEN t.taken = 1 THEN t.medicine_id END) as taken
+            COUNT(DISTINCT CASE WHEN t.taken = 1 THEN t.medicine_id END) as taken,
+            COUNT(DISTINCT CASE WHEN t.skipped = 1 THEN t.medicine_id END) as skipped
         FROM medicines m
         INNER JOIN medicine_days md ON m.id = md.medicine_id
         LEFT JOIN tracking t ON m.id = t.medicine_id AND t.date = ?
@@ -480,7 +641,7 @@ class MedicineDatabase:
         cursor = conn.execute(query, (date_str, current_day))
         row = cursor.fetchone()
 
-        return (row['taken'] or 0, row['total'] or 0)
+        return (row['taken'] or 0, row['skipped'] or 0, row['total'] or 0)
 
     def get_tracking_history(self, medicine_id: str = None,
                              start_date: date = None, end_date: date = None) -> List[Dict]:

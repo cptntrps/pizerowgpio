@@ -34,6 +34,7 @@ from shared.app_utils import (
 from display.touch_handler import TouchHandler
 from display.icons import draw_compass_icon
 from display.fonts import get_font_preset
+from display import create_input_handler
 
 # ============================================================================
 # INITIALIZATION
@@ -320,7 +321,7 @@ def draw_quote(quote_text: str, author: str) -> Image.Image:
     return img
 
 
-def draw_flight_portal(flight_data: dict, animation_frame: int = 0) -> Image.Image:
+def draw_flight_portal(flight_data: dict, animation_frame: int = 0, input_mode: str = "touch") -> Image.Image:
     """Draw flight info portal with compass
 
     Split screen layout: info left, compass right.
@@ -329,6 +330,7 @@ def draw_flight_portal(flight_data: dict, animation_frame: int = 0) -> Image.Ima
     Args:
         flight_data: Flight data dictionary or None
         animation_frame: Current animation frame
+        input_mode: Input mode - "touch" or "button"
 
     Returns:
         PIL Image object
@@ -340,10 +342,14 @@ def draw_flight_portal(flight_data: dict, animation_frame: int = 0) -> Image.Ima
     f_medium = get_font_preset('body')
     f_medium_bold = get_font_preset('subtitle')
     f_small = get_font_preset('small')
+    f_tiny = get_font_preset('tiny')
 
     if not flight_data:
         draw.text((30, 50), "No flights overhead", font=f_medium, fill=0)
-        draw.text((170, 110), "Touch=Exit", font=f_small, fill=0)
+        if input_mode == "button":
+            draw.text((140, 110), "Hold: Exit", font=f_small, fill=0)
+        else:
+            draw.text((170, 110), "Touch=Exit", font=f_small, fill=0)
         return img
 
     # Center divider
@@ -360,7 +366,13 @@ def draw_flight_portal(flight_data: dict, animation_frame: int = 0) -> Image.Ima
         user_heading=310
     )
     draw.text((135, 5), f"Live {flight_data['timestamp']}", font=f_small, fill=0)
-    draw.text((135, 110), "Touch=Exit", font=f_small, fill=0)
+
+    # Input mode specific instructions
+    if input_mode == "button":
+        draw.text((135, 102), "Press: Next", font=f_tiny, fill=0)
+        draw.text((135, 112), "Hold: Exit", font=f_tiny, fill=0)
+    else:
+        draw.text((135, 110), "Touch=Exit", font=f_small, fill=0)
 
     # Left Panel: Flight info with animation cycling
     draw.text((5, 5), flight_data["callsign"], font=f_large, fill=0)
@@ -394,6 +406,11 @@ def draw_flight_portal(flight_data: dict, animation_frame: int = 0) -> Image.Ima
               font=f_medium_bold, fill=0)
     draw.text((5, 105), f"Bear: {flight_data.get('bearing', 0):.0f}°",
               font=f_medium_bold, fill=0)
+
+    # Position indicator (Frame X of 2)
+    if input_mode == "button":
+        current_frame = (cycle % 2) + 1
+        draw.text((3, 112), f"View {current_frame}/2", font=f_tiny, fill=0)
 
     return img
 
@@ -433,9 +450,26 @@ def _run_flights_app_impl(epd, gt_dev, gt_old, gt):
     3. Flight display with animation
     """
 
-    # Initialize touch handler
-    touch = TouchHandler(gt, gt_dev)
-    touch.start()
+    # Initialize input handler (auto-detects touch or button mode)
+    handler = create_input_handler(gt=gt, gt_dev=gt_dev, gt_old=gt_old)
+    input_mode = handler.mode
+    logger.info(f"Flights app using {input_mode} input mode")
+
+    # State for exit request
+    exit_requested = [False]
+
+    def request_exit():
+        """Handle exit request from input"""
+        logger.info(f"Exit requested via {input_mode} input")
+        exit_requested[0] = True
+
+    # Set up exit callback (long press or touch depending on mode)
+    if input_mode == "button":
+        handler.on_long_press = request_exit
+    else:
+        handler.on_touch = request_exit
+
+    handler.start()
 
     try:
         # Initialize timers
@@ -456,23 +490,26 @@ def _run_flights_app_impl(epd, gt_dev, gt_old, gt):
 
         # Quote intro phase (10 seconds)
         while time.time() - quote_start < 10:
-            gt.GT_Scan(gt_dev, gt_old)
+            if input_mode == "touch":
+                gt.GT_Scan(gt_dev, gt_old)
 
-            if check_exit_requested(gt_dev):
-                logger.info("Exit requested by menu")
-                touch.stop()
+            if check_exit_requested(gt_dev) or exit_requested[0]:
+                logger.info("Exit requested during quote intro")
+                handler.stop()
                 return
 
-            if gt_old.X[0] == gt_dev.X[0] and gt_old.Y[0] == gt_dev.Y[0] and gt_old.S[0] == gt_dev.S[0]:
-                time.sleep(0.1)
-                continue
+            # Legacy touch check for compatibility
+            if input_mode == "touch":
+                if gt_old.X[0] == gt_dev.X[0] and gt_old.Y[0] == gt_dev.Y[0] and gt_old.S[0] == gt_dev.S[0]:
+                    time.sleep(0.1)
+                    continue
 
-            if gt_dev.TouchpointFlag:
-                gt_dev.TouchpointFlag = 0
-                logger.info("Exiting during quote display")
-                cleanup_touch_state(gt_old)
-                touch.stop()
-                return
+                if gt_dev.TouchpointFlag:
+                    gt_dev.TouchpointFlag = 0
+                    logger.info("Exiting during quote display")
+                    cleanup_touch_state(gt_old)
+                    handler.stop()
+                    return
 
             time.sleep(0.1)
 
@@ -481,7 +518,7 @@ def _run_flights_app_impl(epd, gt_dev, gt_old, gt):
 
         if not flight_data:
             logger.info("No flights - starting quote cycle mode (every 30 min)")
-            _quote_cycle_mode(epd, gt, gt_dev, gt_old, touch, quote_index, AVIATION_QUOTES)
+            _quote_cycle_mode(epd, gt, gt_dev, gt_old, handler, exit_requested, quote_index, AVIATION_QUOTES, input_mode)
             return
 
         # Flight display mode
@@ -490,24 +527,37 @@ def _run_flights_app_impl(epd, gt_dev, gt_old, gt):
             gt,
             gt_dev,
             gt_old,
-            touch,
+            handler,
+            exit_requested,
             flight_data,
             animation_frame,
             update_timer,
             animation_timer,
             quote_timer,
             quote_index,
-            AVIATION_QUOTES)
+            AVIATION_QUOTES,
+            input_mode)
 
     finally:
-        touch.stop()
+        handler.stop()
 
 
-def _quote_cycle_mode(epd, gt, gt_dev, gt_old, touch, quote_index, quotes):
+def _quote_cycle_mode(epd, gt, gt_dev, gt_old, handler, exit_requested, quote_index, quotes, input_mode):
     """Display quotes when no flights are available
 
     Cycles through aviation quotes every 30 minutes, checking periodically
     for overhead flights.
+
+    Args:
+        epd: E-ink display driver
+        gt: Touch controller
+        gt_dev: Touch device state
+        gt_old: Previous touch state
+        handler: InputHandler instance
+        exit_requested: List with exit flag
+        quote_index: Current quote index
+        quotes: List of quotes
+        input_mode: Input mode ("touch" or "button")
     """
     quote_timer = PeriodicTimer(1800)  # 30 min
 
@@ -523,10 +573,11 @@ def _quote_cycle_mode(epd, gt, gt_dev, gt_old, touch, quote_index, quotes):
     quote_index = (quote_index + 1) % len(quotes)
 
     while True:
-        gt.GT_Scan(gt_dev, gt_old)
+        if input_mode == "touch":
+            gt.GT_Scan(gt_dev, gt_old)
 
-        if check_exit_requested(gt_dev):
-            logger.info("Exit requested by menu")
+        if check_exit_requested(gt_dev) or exit_requested[0]:
+            logger.info("Exit requested in quote cycle mode")
             return
 
         # Check if time to show next quote
@@ -553,30 +604,63 @@ def _quote_cycle_mode(epd, gt, gt_dev, gt_old, touch, quote_index, quotes):
             else:
                 logger.info("Still no flights, continuing quote cycle")
 
-        if gt_old.X[0] == gt_dev.X[0] and gt_old.Y[0] == gt_dev.Y[0] and gt_old.S[0] == gt_dev.S[0]:
-            time.sleep(0.1)
-            continue
+        # Legacy touch check for compatibility
+        if input_mode == "touch":
+            if gt_old.X[0] == gt_dev.X[0] and gt_old.Y[0] == gt_dev.Y[0] and gt_old.S[0] == gt_dev.S[0]:
+                time.sleep(0.1)
+                continue
 
-        if gt_dev.TouchpointFlag:
-            gt_dev.TouchpointFlag = 0
-            logger.info("Exiting quote cycle mode")
-            cleanup_touch_state(gt_old)
-            return
+            if gt_dev.TouchpointFlag:
+                gt_dev.TouchpointFlag = 0
+                logger.info("Exiting quote cycle mode")
+                cleanup_touch_state(gt_old)
+                return
 
         time.sleep(0.1)
 
 
-def _flight_display_mode(epd, gt, gt_dev, gt_old, touch, flight_data, animation_frame,
-                         update_timer, animation_timer, quote_timer, quote_index, quotes):
+def _flight_display_mode(epd, gt, gt_dev, gt_old, handler, exit_requested, flight_data, animation_frame,
+                         update_timer, animation_timer, quote_timer, quote_index, quotes, input_mode):
     """Display flight info with animated cycling and periodic quotes
 
     Three periodic operations:
     - Quote display every QUOTE_INTERVAL (300s)
     - Flight update check every UPDATE_INTERVAL (30s)
-    - Animation frame change every ANIMATION_CYCLE_INTERVAL (10s)
+    - Animation frame change every ANIMATION_CYCLE_INTERVAL (10s) in touch mode
+    - In button mode, short press advances frame manually
+
+    Args:
+        epd: E-ink display driver
+        gt: Touch controller
+        gt_dev: Touch device state
+        gt_old: Previous touch state
+        handler: InputHandler instance
+        exit_requested: List with exit flag
+        flight_data: Current flight data
+        animation_frame: Current animation frame
+        update_timer: Timer for flight updates
+        animation_timer: Timer for auto-animation (touch mode)
+        quote_timer: Timer for quote display
+        quote_index: Current quote index
+        quotes: List of quotes
+        input_mode: Input mode ("touch" or "button")
     """
 
-    image = draw_flight_portal(flight_data, animation_frame)
+    # State for manual frame advance in button mode
+    frame_update_needed = [False]
+
+    def advance_frame():
+        """Callback for short press in button mode"""
+        nonlocal animation_frame
+        animation_frame += 1
+        frame_update_needed[0] = True
+        logger.info(f"Manual frame advance to {animation_frame}")
+
+    # Set up short press callback for button mode
+    if input_mode == "button":
+        handler.on_short_press = advance_frame
+
+    image = draw_flight_portal(flight_data, animation_frame, input_mode)
     epd.displayPartial(epd.getbuffer(image))
 
     quote_index = (quote_index + 1) % len(quotes)
@@ -584,15 +668,23 @@ def _flight_display_mode(epd, gt, gt_dev, gt_old, touch, flight_data, animation_
     animation_timer.reset()
     quote_timer.reset()
 
-    logger.info("Flights app started")
+    logger.info(f"Flights app started in {input_mode} mode")
 
     while True:
-        gt.GT_Scan(gt_dev, gt_old)
+        if input_mode == "touch":
+            gt.GT_Scan(gt_dev, gt_old)
 
-        if check_exit_requested(gt_dev):
-            logger.info("Exit requested by menu")
-            cleanup_touch_state(gt_old)
+        if check_exit_requested(gt_dev) or exit_requested[0]:
+            logger.info("Exit requested from flight display")
+            if input_mode == "touch":
+                cleanup_touch_state(gt_old)
             return
+
+        # Handle manual frame update in button mode
+        if input_mode == "button" and frame_update_needed[0]:
+            frame_update_needed[0] = False
+            image = draw_flight_portal(flight_data, animation_frame, input_mode)
+            epd.displayPartial(epd.getbuffer(image))
 
         # Quote display cycle
         if quote_timer.is_ready():
@@ -609,7 +701,7 @@ def _flight_display_mode(epd, gt, gt_dev, gt_old, touch, flight_data, animation_
 
             flight_data = get_current_flight()
             if flight_data:
-                image = draw_flight_portal(flight_data, 0)
+                image = draw_flight_portal(flight_data, 0, input_mode)
                 epd.displayPartial(epd.getbuffer(image))
 
             quote_index = (quote_index + 1) % len(quotes)
@@ -624,26 +716,27 @@ def _flight_display_mode(epd, gt, gt_dev, gt_old, touch, flight_data, animation_
             if new_flight:
                 flight_data = new_flight
                 animation_frame = 0
-                image = draw_flight_portal(flight_data, animation_frame)
+                image = draw_flight_portal(flight_data, animation_frame, input_mode)
                 epd.displayPartial(epd.getbuffer(image))
 
             animation_timer.reset()
 
-        # Animation frame cycle
-        elif animation_timer.is_ready():
+        # Animation frame cycle (auto-advance in touch mode only)
+        elif input_mode == "touch" and animation_timer.is_ready():
             animation_frame += 1
-            image = draw_flight_portal(flight_data, animation_frame)
+            image = draw_flight_portal(flight_data, animation_frame, input_mode)
             epd.displayPartial(epd.getbuffer(image))
 
-        # Handle touch input
-        if gt_old.X[0] == gt_dev.X[0] and gt_old.Y[0] == gt_dev.Y[0] and gt_old.S[0] == gt_dev.S[0]:
-            time.sleep(0.01)
-            continue
+        # Legacy touch input handling
+        if input_mode == "touch":
+            if gt_old.X[0] == gt_dev.X[0] and gt_old.Y[0] == gt_dev.Y[0] and gt_old.S[0] == gt_dev.S[0]:
+                time.sleep(0.01)
+                continue
 
-        if gt_dev.TouchpointFlag:
-            gt_dev.TouchpointFlag = 0
-            logger.info("Exiting flights app")
-            cleanup_touch_state(gt_old)
-            break
+            if gt_dev.TouchpointFlag:
+                gt_dev.TouchpointFlag = 0
+                logger.info("Exiting flights app via touch")
+                cleanup_touch_state(gt_old)
+                break
 
         time.sleep(0.01)

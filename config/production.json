@@ -2,27 +2,25 @@
   "environment": "production",
   "debug": false,
   "log_level": "WARNING",
-  "weather": {
-    "location": "Boston",
-    "units": "metric",
-    "update_interval": 600,
-    "display_format": "compact",
-    "show_forecast": false,
-    "api_timeout": 5
-  },
-  "mbta": {
-    "home_station_id": "place-davis",
-    "home_station_name": "Davis Square",
-    "work_station_id": "place-pktrm",
-    "work_station_name": "Park Street",
-    "update_interval": 60,
-    "morning_start": "06:00",
-    "morning_end": "12:00",
-    "evening_start": "15:00",
-    "evening_end": "21:00",
-    "show_delays": true,
-    "max_predictions": 2,
-    "api_timeout": 5
+  "hardware": {
+    "profile": "auto",
+    "input_mode": "auto",
+    "touch": {
+      "enabled": true,
+      "driver": "GT",
+      "int_pin": 27,
+      "i2c_address": "0x5D"
+    },
+    "button": {
+      "gpio_pin": 3,
+      "long_press_threshold": 2.0,
+      "bounce_time": 0.1,
+      "pull_up": true
+    },
+    "display": {
+      "model": "2in13_V4",
+      "has_touch": null
+    }
   },
   "disney": {
     "park_id": 6,
@@ -44,15 +42,6 @@
     "show_details": false,
     "api_timeout": 5
   },
-  "pomodoro": {
-    "work_duration": 1500,
-    "short_break": 300,
-    "long_break": 900,
-    "sessions_until_long_break": 4,
-    "auto_start_breaks": false,
-    "auto_start_pomodoros": false,
-    "sound_enabled": false
-  },
   "forbidden": {
     "message": "Alem de viado eh curioso ein!"
   },
@@ -68,52 +57,34 @@
   "menu": {
     "apps": [
       {
-        "id": "weather",
-        "name": "Weather",
+        "id": "medicine",
+        "name": "Medicine",
         "enabled": true,
         "order": 1
-      },
-      {
-        "id": "mbta",
-        "name": "MBTA",
-        "enabled": true,
-        "order": 2
       },
       {
         "id": "disney",
         "name": "Disney",
         "enabled": true,
-        "order": 3
+        "order": 2
       },
       {
         "id": "flights",
         "name": "Flights",
         "enabled": true,
-        "order": 4
-      },
-      {
-        "id": "pomodoro",
-        "name": "Pomodoro",
-        "enabled": true,
-        "order": 5
-      },
-      {
-        "id": "medicine",
-        "name": "Medicine",
-        "enabled": true,
-        "order": 6
+        "order": 3
       },
       {
         "id": "forbidden",
         "name": "Forbidden",
         "enabled": false,
-        "order": 7
+        "order": 4
       },
       {
         "id": "reboot",
         "name": "Reboot",
         "enabled": true,
-        "order": 8
+        "order": 5
       }
     ],
     "button_hold_time": 2.0,

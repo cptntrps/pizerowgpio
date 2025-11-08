@@ -1,6 +1,6 @@
 -- Pi Zero 2W Medicine Tracker Database Schema
 -- SQLite 3.x compatible
--- Version: 2.0.0
+-- Version: 1.1.0
 -- Date: 2025-11-08
 
 -- Note: PRAGMAs are executed separately in Python code, not in this script
@@ -59,6 +59,9 @@ CREATE TABLE tracking (
     timestamp TIMESTAMP NOT NULL,
     pills_taken INTEGER NOT NULL DEFAULT 1,
     notes TEXT,
+    skipped INTEGER DEFAULT 0,
+    skip_reason TEXT DEFAULT NULL,
+    skip_timestamp TEXT DEFAULT NULL,
     FOREIGN KEY (medicine_id) REFERENCES medicines(id) ON DELETE CASCADE,
     UNIQUE(medicine_id, date, time_window)
 );
@@ -68,6 +71,8 @@ CREATE INDEX idx_tracking_date ON tracking(date DESC);
 CREATE INDEX idx_tracking_medicine ON tracking(medicine_id);
 CREATE INDEX idx_tracking_date_medicine ON tracking(date, medicine_id);
 CREATE INDEX idx_tracking_taken ON tracking(taken) WHERE taken = 1;
+CREATE INDEX idx_tracking_skipped ON tracking(skipped);
+CREATE INDEX idx_tracking_skip_timestamp ON tracking(skip_timestamp);
 
 -- ============================================================================
 -- TIME_WINDOWS TABLE
@@ -98,7 +103,7 @@ CREATE TABLE metadata (
 
 -- Insert initial metadata
 INSERT INTO metadata (key, value) VALUES
-    ('schema_version', '2.0.0'),
+    ('schema_version', '1.1.0'),
     ('last_updated', datetime('now'));
 
 -- ============================================================================
@@ -198,6 +203,28 @@ FROM medicines
 WHERE active = 1
   AND pills_remaining <= low_stock_threshold
 ORDER BY pills_remaining ASC;
+
+-- View: Adherence with skip details
+CREATE VIEW adherence_detailed AS
+SELECT
+    m.id as medicine_id,
+    m.name,
+    m.dosage,
+    t.date,
+    t.time_window,
+    t.taken,
+    t.skipped,
+    t.timestamp as taken_timestamp,
+    t.skip_timestamp,
+    t.skip_reason,
+    CASE
+        WHEN t.taken = 1 THEN 'taken'
+        WHEN t.skipped = 1 THEN 'skipped'
+        ELSE 'pending'
+    END as status
+FROM medicines m
+LEFT JOIN tracking t ON m.id = t.medicine_id
+ORDER BY t.date DESC, m.name;
 
 -- ============================================================================
 -- INTEGRITY CHECKS

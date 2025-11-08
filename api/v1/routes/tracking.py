@@ -17,7 +17,8 @@ from api.v1.serializers import (
     create_paginated_response
 )
 from db.medicine_db import MedicineDatabase
-from shared.validation import validate_date_format
+from shared.validation import validate_date_format, validate_skip_medicine
+from marshmallow import ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -403,7 +404,7 @@ def get_today_stats():
 
         # Get statistics
         db = MedicineDatabase()
-        medicines_taken, total_medicines = db.get_today_stats(check_date=check_date)
+        medicines_taken, medicines_skipped, total_medicines = db.get_today_stats(check_date=check_date)
 
         # Get low stock count
         low_stock = db.get_low_stock_medicines()
@@ -412,14 +413,15 @@ def get_today_stats():
         # Calculate adherence rate
         adherence_rate = medicines_taken / total_medicines if total_medicines > 0 else 0.0
 
-        # Get pending medicines
-        pending_medicines = total_medicines - medicines_taken
+        # Get pending medicines (not taken and not skipped)
+        pending_medicines = total_medicines - medicines_taken - medicines_skipped
 
         return jsonify(create_success_response(
             data={
                 'date': check_date.strftime('%Y-%m-%d'),
                 'total_medicines': total_medicines,
                 'medicines_taken': medicines_taken,
+                'medicines_skipped': medicines_skipped,
                 'medicines_pending': pending_medicines,
                 'adherence_rate': round(adherence_rate, 2),
                 'low_stock_count': low_stock_count
@@ -534,6 +536,242 @@ def get_adherence_stats():
         return jsonify(create_error_response(
             code='DATABASE_ERROR',
             message='Failed to retrieve adherence statistics',
+            details=str(e)
+        )), 500
+
+
+@api_v1_bp.route('/tracking/skip', methods=['POST'])
+def skip_medicine():
+    """
+    Skip a medicine dose
+
+    Request Body:
+        {
+            "medicine_id": "med_xxx",
+            "time_window": "morning",  # Optional
+            "skip_reason": "Forgot" | "Side effects" | "Out of stock" | "Doctor advised" | "Other",
+            "skip_date": "2025-11-08",  # Optional, defaults to today
+            "notes": "Additional notes"  # Optional
+        }
+
+    Returns:
+        201: Medicine marked as skipped
+        400: Validation error
+        404: Medicine not found
+        500: Database error
+    """
+    try:
+        # Get request data
+        data = request.get_json()
+
+        if not data:
+            return jsonify(create_error_response(
+                code='VALIDATION_ERROR',
+                message='Request body is required',
+                details={'field': 'body'}
+            )), 400
+
+        # Validate input
+        try:
+            validated_data = validate_skip_medicine(data)
+        except ValidationError as e:
+            return jsonify(create_error_response(
+                code='VALIDATION_ERROR',
+                message='Validation failed',
+                details=e.messages
+            )), 400
+
+        # Extract validated fields
+        medicine_id = validated_data['medicine_id']
+        time_window = validated_data.get('time_window')
+        skip_date_obj = validated_data.get('skip_date', date.today())
+        skip_reason = validated_data.get('skip_reason')
+
+        # Skip the medicine
+        db = MedicineDatabase()
+        result = db.skip_medicine(
+            medicine_id=medicine_id,
+            time_window=time_window,
+            skip_date=skip_date_obj,
+            skip_timestamp=datetime.now(),
+            skip_reason=skip_reason
+        )
+
+        # Get medicine info
+        medicine = db.get_medicine_by_id(medicine_id)
+
+        return jsonify(create_success_response(
+            data={
+                'medicine_id': medicine_id,
+                'medicine_name': medicine['name'] if medicine else 'Unknown',
+                'skip_date': result['skip_date'],
+                'skip_timestamp': result['skip_timestamp'],
+                'skip_reason': skip_reason,
+                'time_window': result['time_window']
+            },
+            message='Medicine marked as skipped'
+        )), 201
+
+    except ValueError as e:
+        return jsonify(create_error_response(
+            code='RESOURCE_NOT_FOUND',
+            message=str(e),
+            details={'medicine_id': data.get('medicine_id')}
+        )), 404
+    except Exception as e:
+        logger.error(f"Failed to skip medicine: {e}")
+        return jsonify(create_error_response(
+            code='DATABASE_ERROR',
+            message='Failed to skip medicine',
+            details=str(e)
+        )), 500
+
+
+@api_v1_bp.route('/tracking/skip-history', methods=['GET'])
+def get_skip_history():
+    """
+    Get skip history
+
+    Query Parameters:
+        - medicine_id (str): Filter by medicine ID (optional)
+        - start_date (str): Start date YYYY-MM-DD (optional)
+        - end_date (str): End date YYYY-MM-DD (optional)
+        - page (int): Page number (default: 1)
+        - per_page (int): Items per page (default: 20, max: 100)
+
+    Returns:
+        200: Skip history
+        400: Invalid parameters
+        500: Database error
+    """
+    try:
+        # Parse query parameters
+        medicine_id = request.args.get('medicine_id')
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+        page = max(1, int(request.args.get('page', 1)))
+        per_page = int(request.args.get('per_page', 20))
+        per_page = max(1, min(per_page, 100))
+
+        # Validate date formats
+        start_date = None
+        end_date = None
+
+        if start_date_str:
+            if not validate_date_format(start_date_str):
+                return jsonify(create_error_response(
+                    code='VALIDATION_ERROR',
+                    message='Invalid start_date format. Use YYYY-MM-DD',
+                    details={'field': 'start_date'}
+                )), 400
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+
+        if end_date_str:
+            if not validate_date_format(end_date_str):
+                return jsonify(create_error_response(
+                    code='VALIDATION_ERROR',
+                    message='Invalid end_date format. Use YYYY-MM-DD',
+                    details={'field': 'end_date'}
+                )), 400
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+        # Get skip history
+        db = MedicineDatabase()
+        skip_records = db.get_skip_history(
+            medicine_id=medicine_id,
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        # Pagination
+        total = len(skip_records)
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_records = skip_records[start_idx:end_idx]
+
+        return jsonify(create_paginated_response(
+            items=paginated_records,
+            total=total,
+            page=page,
+            per_page=per_page
+        )), 200
+
+    except Exception as e:
+        logger.error(f"Failed to get skip history: {e}")
+        return jsonify(create_error_response(
+            code='DATABASE_ERROR',
+            message='Failed to retrieve skip history',
+            details=str(e)
+        )), 500
+
+
+@api_v1_bp.route('/tracking/adherence-detailed', methods=['GET'])
+def get_adherence_detailed():
+    """
+    Get detailed adherence stats including skips
+
+    Query Parameters:
+        - start_date (str): Start date YYYY-MM-DD (optional, defaults to 30 days ago)
+        - end_date (str): End date YYYY-MM-DD (optional, defaults to today)
+
+    Response:
+        {
+            "taken": 45,
+            "skipped": 3,
+            "missed": 2,
+            "total": 50,
+            "adherence_rate": 90.0,
+            "skip_rate": 6.0
+        }
+
+    Returns:
+        200: Detailed adherence statistics
+        400: Invalid parameters
+        500: Database error
+    """
+    try:
+        # Parse query parameters
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
+        # Validate date formats
+        start_date = None
+        end_date = None
+
+        if start_date_str:
+            if not validate_date_format(start_date_str):
+                return jsonify(create_error_response(
+                    code='VALIDATION_ERROR',
+                    message='Invalid start_date format. Use YYYY-MM-DD',
+                    details={'field': 'start_date'}
+                )), 400
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+
+        if end_date_str:
+            if not validate_date_format(end_date_str):
+                return jsonify(create_error_response(
+                    code='VALIDATION_ERROR',
+                    message='Invalid end_date format. Use YYYY-MM-DD',
+                    details={'field': 'end_date'}
+                )), 400
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+
+        # Get detailed adherence stats
+        db = MedicineDatabase()
+        stats = db.get_adherence_detailed(
+            start_date=start_date,
+            end_date=end_date
+        )
+
+        return jsonify(create_success_response(
+            data=stats
+        )), 200
+
+    except Exception as e:
+        logger.error(f"Failed to get detailed adherence stats: {e}")
+        return jsonify(create_error_response(
+            code='DATABASE_ERROR',
+            message='Failed to retrieve detailed adherence statistics',
             details=str(e)
         )), 500
 

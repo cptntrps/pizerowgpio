@@ -69,6 +69,15 @@ from .text import (
     truncate_text,
     get_text_size,
 )
+from .input_handler import (
+    InputHandler,
+    InputEvent,
+    create_input_handler,
+    detect_input_mode,
+    get_input_info,
+)
+from .touch_input import TouchInputHandler, create_touch_handler
+from .button_input import ButtonInputHandler, ButtonEvent, create_button_handler
 
 __version__ = "1.0.0"
 __author__ = "Pi Zero 2W Team"
@@ -94,4 +103,17 @@ __all__ = [
     "draw_wrapped_text",
     "truncate_text",
     "get_text_size",
+    # Input Abstraction
+    "InputHandler",
+    "InputEvent",
+    "create_input_handler",
+    "detect_input_mode",
+    "get_input_info",
+    # Touch Input
+    "TouchInputHandler",
+    "create_touch_handler",
+    # Button Input
+    "ButtonInputHandler",
+    "ButtonEvent",
+    "create_button_handler",
 ]

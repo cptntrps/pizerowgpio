@@ -1,13 +1,14 @@
 #!/usr/bin/python3
 """
-Disney Magic Kingdom Wait Times for E-Paper Display (REFACTORED)
+Disney Magic Kingdom Wait Times for E-Paper Display (DUAL-INPUT REFACTORED)
 Shows current ride wait times with themed backgrounds
+Supports both touchscreen and button input modes
 Optimized for e-paper refresh limitations with shared utilities
 """
 from display.components import MessageBox
 from display.text import draw_centered_text, truncate_text_to_width
 from display.fonts import get_font_preset
-from display.touch_handler import TouchHandler, cleanup_touch_state, check_exit_requested
+from display import create_input_handler, InputHandler
 from shared.app_utils import ConfigLoader, setup_logging, setup_paths
 from TP_lib import gt1151, epd2in13_V3
 import sys
@@ -141,11 +142,14 @@ def load_land_background(land_name):
     return blank
 
 
-def draw_ride_info(ride):
+def draw_ride_info(ride, input_mode="touch", ride_index=0, total_rides=0):
     """Draw ride wait time with themed background
 
     Args:
         ride: Ride dictionary with name, wait_time, is_open, land
+        input_mode: "touch" or "button" for mode-specific UI
+        ride_index: Current ride index (for button mode)
+        total_rides: Total number of rides (for button mode)
 
     Returns:
         PIL Image: Ride info display
@@ -165,6 +169,11 @@ def draw_ride_info(ride):
     # Ride name - truncate if too long
     name = ride['name']
     dummy_img = Image.new('1', (1, 1), 255)
+
+    # Add selection indicator for button mode
+    if input_mode == "button":
+        name = f"> {name}"
+
     bbox = ImageDraw.Draw(dummy_img).textbbox((0, 0), name, font=f_name)
     text_width = bbox[2] - bbox[0]
 
@@ -173,9 +182,12 @@ def draw_ride_info(ride):
         name = truncate_text_to_width(draw, name, 230, f_name, suffix='...')
         draw.text((10, 45), name, font=f_name, fill=0)
     else:
-        # Center text if it fits
-        x_pos = (250 - text_width) // 2
-        draw.text((x_pos, 45), name, font=f_name, fill=0)
+        # Center text if it fits (but left-align for button mode with indicator)
+        if input_mode == "button":
+            draw.text((10, 45), name, font=f_name, fill=0)
+        else:
+            x_pos = (250 - text_width) // 2
+            draw.text((x_pos, 45), name, font=f_name, fill=0)
 
     # Wait time or status
     wait_text = f"{ride['wait_time']} min" if ride['is_open'] else "CLOSED"
@@ -183,9 +195,22 @@ def draw_ride_info(ride):
     w = bbox[2] - bbox[0]
     draw.text(((250 - w) // 2, 62), wait_text, font=f_time, fill=0)
 
-    # Land name at bottom
+    # Land name at top
     draw.text((5, 5), ride['land'], font=f_small, fill=0)
-    draw.text((180, 110), "Touch=Exit", font=f_small, fill=0)
+
+    # Mode-specific instructions and indicators at bottom
+    if input_mode == "button":
+        # Button mode: Show instructions and position
+        draw.text((5, 110), "Press:Next | Hold:Exit", font=f_small, fill=0)
+
+        # Position indicator (right-aligned)
+        position_text = f"{ride_index + 1}/{total_rides}"
+        bbox = ImageDraw.Draw(dummy_img).textbbox((0, 0), position_text, font=f_small)
+        pos_width = bbox[2] - bbox[0]
+        draw.text((245 - pos_width, 110), position_text, font=f_small, fill=0)
+    else:
+        # Touch mode: Show touch instruction
+        draw.text((180, 110), "Tap=Exit", font=f_small, fill=0)
 
     return img
 
@@ -227,25 +252,58 @@ def show_error_screen(epd, message):
 # MAIN APPLICATION
 # ============================================================================
 
-def run_disney_app(epd, gt_dev, gt_old, gt):
-    """Disney wait times app (REFACTORED)
+def run_disney_app(epd, gt_dev=None, gt_old=None, gt=None):
+    """Disney wait times app with dual-input support
 
     Args:
         epd: E-paper display driver
-        gt_dev: Touch device state
-        gt_old: Previous touch state
-        gt: Touch driver interface
+        gt_dev: Touch device state (optional, for touch mode)
+        gt_old: Previous touch state (optional, for touch mode)
+        gt: Touch driver interface (optional, for touch mode)
     """
-    # Use TouchHandler for cleaner thread management
-    touch = TouchHandler(gt, gt_dev)
-    touch.start()
+    # Create input handler (auto-detects touch vs button)
+    input_handler = create_input_handler(
+        gt=gt,
+        gt_dev=gt_dev,
+        gt_old=gt_old
+    )
+
+    input_mode = input_handler.mode
+    logger.info(f"Disney app started in {input_mode} mode")
+
+    # State for app control
+    exit_requested = [False]
+    next_ride_requested = [False]
+
+    # Setup input callbacks
+    def on_short_press():
+        """Handle short press (button mode) or tap (touch mode)"""
+        if input_mode == "button":
+            # Button mode: Next ride
+            logger.info("SHORT PRESS - Next ride")
+            next_ride_requested[0] = True
+        else:
+            # Touch mode: Exit
+            logger.info("TAP - Exit requested")
+            exit_requested[0] = True
+
+    def on_long_press():
+        """Handle long press - Exit in button mode"""
+        logger.info("LONG PRESS - Exit requested")
+        exit_requested[0] = True
+
+    def on_touch():
+        """Handle generic touch - Exit in touch mode"""
+        if input_mode == "touch":
+            logger.info("TOUCH - Exit requested")
+            exit_requested[0] = True
+
+    # Register callbacks
+    input_handler.on_short_press = on_short_press
+    input_handler.on_long_press = on_long_press
+    input_handler.on_touch = on_touch
 
     try:
-        # Clear any pending touch events
-        cleanup_touch_state(gt_old)
-
-        logger.info("Disney app started - fetching wait times...")
-
         # Show loading screen
         show_loading_screen(epd)
 
@@ -269,45 +327,41 @@ def run_disney_app(epd, gt_dev, gt_old, gt):
 
         # Configuration
         disney_config = ConfigLoader.get_section('disney', {})
-        update_interval = disney_config.get('update_interval', 10)
-        scroll_interval = 0.5
-        scroll_step = 3
+        auto_advance_interval = disney_config.get('update_interval', 10)
 
         # Display loop
         ride_index = 0
-        last_update = time.time()
+        last_auto_advance = time.time()
 
-        # Check if current ride needs scrolling
-        f_name = get_font_preset('subtitle')
-        dummy_img = Image.new('1', (1, 1), 255)
-        bbox = ImageDraw.Draw(dummy_img).textbbox((0, 0), rides[ride_index]['name'], font=f_name)
-        needs_scroll = (bbox[2] - bbox[0]) > 230
+        # Start input monitoring
+        input_handler.start()
 
         # Initial display
-        image = draw_ride_info(rides[ride_index])
+        image = draw_ride_info(
+            rides[ride_index],
+            input_mode=input_mode,
+            ride_index=ride_index,
+            total_rides=len(rides)
+        )
         epd.displayPartial(epd.getbuffer(image))
 
         # Wait for display to settle
         time.sleep(0.5)
-        cleanup_touch_state(gt_old)
 
-        while touch.is_running():
-            # Check for exit signal
-            if check_exit_requested(gt_dev) or touch.is_touched():
+        # Main loop
+        while input_handler.is_active:
+            # Check for exit
+            if exit_requested[0]:
                 logger.info("Exiting Disney app")
                 break
 
             current_time = time.time()
 
-            # Update to next ride
-            if current_time - last_update >= update_interval:
+            # Handle manual next ride (button mode)
+            if next_ride_requested[0]:
+                next_ride_requested[0] = False
                 ride_index = (ride_index + 1) % len(rides)
                 current_ride = rides[ride_index]
-
-                # Check if new ride needs scrolling
-                bbox = ImageDraw.Draw(dummy_img).textbbox(
-                    (0, 0), current_ride['name'], font=f_name)
-                needs_scroll = (bbox[2] - bbox[0]) > 230
 
                 # Re-fetch every 20 rides
                 if ride_index % 20 == 0:
@@ -321,12 +375,43 @@ def run_disney_app(epd, gt_dev, gt_old, gt):
                         for land in unique_lands:
                             load_land_background(land)
 
-                image = draw_ride_info(current_ride)
+                image = draw_ride_info(
+                    current_ride,
+                    input_mode=input_mode,
+                    ride_index=ride_index,
+                    total_rides=len(rides)
+                )
                 epd.displayPartial(epd.getbuffer(image))
-                last_update = current_time
+                last_auto_advance = current_time
+
+            # Auto-advance to next ride (touch mode or button mode after timeout)
+            elif current_time - last_auto_advance >= auto_advance_interval:
+                ride_index = (ride_index + 1) % len(rides)
+                current_ride = rides[ride_index]
+
+                # Re-fetch every 20 rides
+                if ride_index % 20 == 0:
+                    logger.debug("Re-fetching wait times...")
+                    new_rides = fetch_wait_times()
+                    if new_rides:
+                        rides = new_rides
+                        random.shuffle(rides)
+                        BACKGROUND_CACHE.clear()
+                        unique_lands = set(ride['land'] for ride in rides)
+                        for land in unique_lands:
+                            load_land_background(land)
+
+                image = draw_ride_info(
+                    current_ride,
+                    input_mode=input_mode,
+                    ride_index=ride_index,
+                    total_rides=len(rides)
+                )
+                epd.displayPartial(epd.getbuffer(image))
+                last_auto_advance = current_time
 
             # Small sleep to avoid busy waiting
-            time.sleep(0.01)
+            time.sleep(0.1)
 
     except Exception as e:
         logger.error(f"Application error: {e}", exc_info=True)
@@ -336,8 +421,7 @@ def run_disney_app(epd, gt_dev, gt_old, gt):
     finally:
         # Cleanup
         BACKGROUND_CACHE.clear()
-        cleanup_touch_state(gt_old)
-        touch.stop()
+        input_handler.stop()
         logger.info("Disney app cleanup complete")
 
 
@@ -353,10 +437,18 @@ if __name__ == "__main__":
         epd.Clear(0xFF)
         epd.init(epd.PART_UPDATE)
 
-        # Initialize touch
-        gt = gt1151.gt1151()
-        gt_dev = gt1151.gt1151_dev()
-        gt_old = gt1151.gt1151_dev()
+        # Try to initialize touch (may not be available)
+        gt = None
+        gt_dev = None
+        gt_old = None
+
+        try:
+            gt = gt1151.gt1151()
+            gt_dev = gt1151.gt1151_dev()
+            gt_old = gt1151.gt1151_dev()
+            logger.info("Touch hardware detected")
+        except Exception as e:
+            logger.info(f"Touch not available, using button mode: {e}")
 
         # Run application
         run_disney_app(epd, gt_dev, gt_old, gt)

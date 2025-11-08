@@ -20,7 +20,7 @@
       "notes": "Take with breakfast",
       "active": true,
       "color_code": "yellow",
-      "pills_remaining": 59,
+      "pills_remaining": 58,
       "pills_per_dose": 1,
       "low_stock_threshold": 10
     },
@@ -29,6 +29,8 @@
       "name": "Vyvanse",
       "dosage": "30mg",
       "time_window": "morning",
+      "window_start": "06:00",
+      "window_end": "12:00",
       "with_food": true,
       "days": [
         "mon",
@@ -40,18 +42,18 @@
         "sun"
       ],
       "notes": "",
-      "pills_remaining": 17,
+      "pills_remaining": 16,
       "pills_per_dose": 1,
       "low_stock_threshold": 7,
-      "active": true,
-      "window_start": "06:00",
-      "window_end": "10:00"
+      "active": true
     },
     {
       "id": "med_1762467794570",
       "name": "Buproprion XL",
       "dosage": "150mg",
       "time_window": "morning",
+      "window_start": "06:00",
+      "window_end": "12:00",
       "with_food": false,
       "days": [
         "mon",
@@ -66,15 +68,13 @@
       "pills_remaining": 45,
       "pills_per_dose": 1,
       "low_stock_threshold": 7,
-      "active": true,
-      "window_start": "06:00",
-      "window_end": "10:00"
+      "active": true
     },
     {
-      "id": "med_1762529941070",
-      "name": "Test Medicine",
+      "id": "med_1762530242594",
+      "name": "Magnesium",
       "dosage": "500mg",
-      "time_window": "afternoon",
+      "time_window": "morning",
       "with_food": false,
       "days": [
         "mon",
@@ -86,12 +86,35 @@
         "sun"
       ],
       "notes": "",
-      "pills_remaining": 30,
+      "pills_remaining": 28,
       "pills_per_dose": 1,
       "low_stock_threshold": 10,
       "active": true,
-      "window_start": "12:00",
-      "window_end": "18:00"
+      "window_start": "06:00",
+      "window_end": "12:00"
+    },
+    {
+      "id": "med_1762606811268",
+      "name": "Fish Oil",
+      "dosage": "1200",
+      "time_window": "morning",
+      "with_food": false,
+      "days": [
+        "mon",
+        "tue",
+        "wed",
+        "thu",
+        "fri",
+        "sat",
+        "sun"
+      ],
+      "notes": "",
+      "pills_remaining": 199,
+      "pills_per_dose": 1,
+      "low_stock_threshold": 10,
+      "active": true,
+      "window_start": "06:00",
+      "window_end": "12:00"
     }
   ],
   "tracking": {
@@ -117,6 +140,28 @@
       "med_001_morning": {
         "taken": true,
         "timestamp": "2025-11-07T09:01:31"
+      },
+      "med_1762530242594_morning": {
+        "taken": true,
+        "timestamp": "2025-11-07T10:55:41"
+      }
+    },
+    "2025-11-08": {
+      "med_001_morning": {
+        "taken": true,
+        "timestamp": "2025-11-08T08:04:55"
+      },
+      "med_1762467778545_morning": {
+        "taken": true,
+        "timestamp": "2025-11-08T08:07:57"
+      },
+      "med_1762530242594_morning": {
+        "taken": true,
+        "timestamp": "2025-11-08T12:30:26"
+      },
+      "med_1762606811268_morning": {
+        "taken": true,
+        "timestamp": "2025-11-08T12:30:40"
       }
     }
   },
@@ -137,5 +182,6 @@
       "start": "22:00",
       "end": "23:59"
     }
-  }
+  },
+  "last_updated": "2025-11-08T12:30:40"
 }

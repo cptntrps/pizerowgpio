@@ -13,6 +13,9 @@ gpiozero>=2.0.0,<3.0.0
 # Data Validation (updated version)
 marshmallow>=3.20.0,<4.0.0
 
+# HTTP Client Library
+requests>=2.31.0,<3.0.0
+
 # Security & Configuration Management
 Flask-Talisman>=1.1.0  # Security headers
 Flask-Limiter>=3.5.0   # Rate limiting

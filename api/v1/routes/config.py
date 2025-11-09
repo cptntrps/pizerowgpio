@@ -23,10 +23,9 @@ CONFIG_FILE = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'config.
 # Thread-safe lock for config file operations
 config_lock = Lock()
 
-# Valid configuration sections
+# Valid configuration sections (REMOVED: weather, mbta, pomodoro - apps deleted in Phase 4)
 VALID_SECTIONS = [
-    'weather', 'mbta', 'disney', 'flights', 'pomodoro',
-    'forbidden', 'medicine', 'menu', 'system', 'display'
+    'disney', 'flights', 'forbidden', 'medicine', 'menu', 'system', 'display'
 ]
 
 
@@ -329,28 +328,7 @@ def patch_config_section(section):
 
 
 # Section-specific convenience endpoints (optional, for better organization)
-
-@api_v1_bp.route('/config/weather', methods=['GET', 'PUT', 'PATCH'])
-def weather_config():
-    """Weather configuration endpoint (convenience wrapper)"""
-    if request.method == 'GET':
-        return get_config_section('weather')
-    elif request.method == 'PUT':
-        return replace_config_section('weather')
-    elif request.method == 'PATCH':
-        return patch_config_section('weather')
-
-
-@api_v1_bp.route('/config/mbta', methods=['GET', 'PUT', 'PATCH'])
-def mbta_config():
-    """MBTA configuration endpoint (convenience wrapper)"""
-    if request.method == 'GET':
-        return get_config_section('mbta')
-    elif request.method == 'PUT':
-        return replace_config_section('mbta')
-    elif request.method == 'PATCH':
-        return patch_config_section('mbta')
-
+# REMOVED: weather, mbta, pomodoro - apps deleted in Phase 4
 
 @api_v1_bp.route('/config/disney', methods=['GET', 'PUT', 'PATCH'])
 def disney_config():
@@ -372,17 +350,6 @@ def flights_config():
         return replace_config_section('flights')
     elif request.method == 'PATCH':
         return patch_config_section('flights')
-
-
-@api_v1_bp.route('/config/pomodoro', methods=['GET', 'PUT', 'PATCH'])
-def pomodoro_config():
-    """Pomodoro configuration endpoint (convenience wrapper)"""
-    if request.method == 'GET':
-        return get_config_section('pomodoro')
-    elif request.method == 'PUT':
-        return replace_config_section('pomodoro')
-    elif request.method == 'PATCH':
-        return patch_config_section('pomodoro')
 
 
 @api_v1_bp.route('/config/forbidden', methods=['GET', 'PUT', 'PATCH'])

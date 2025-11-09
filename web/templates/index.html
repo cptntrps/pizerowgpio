@@ -26,20 +26,31 @@
                 Applications
             </button>
             <div class="submenu" id="apps-submenu">
-                <button class="menu-item" onclick="showSection('weather')">Weather</button>
-                <button class="menu-item" onclick="showSection('mbta')">MBTA Transit</button>
+                <button class="menu-item" onclick="showSection('medicine')">Medicine Tracker</button>
                 <button class="menu-item" onclick="showSection('disney')">Disney Times</button>
                 <button class="menu-item" onclick="showSection('flights')">Flights</button>
-                <button class="menu-item" onclick="showSection('pomodoro')">Pomodoro</button>
-                <button class="menu-item" onclick="showSection('medicine')">Medicine Tracker</button>
                 <button class="menu-item" onclick="showSection('forbidden')">Forbidden</button>
             </div>
 
-            <button class="menu-item" onclick="showSection('settings')">
+            <button class="menu-item" onclick="showSection('hardware')">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                </svg>
+                Hardware Setup
+            </button>
+
+            <button class="menu-item" onclick="showSection('system')">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m-9-9h6m6 0h6"/>
                 </svg>
-                Settings
+                System Settings
+            </button>
+
+            <button class="menu-item" onclick="showSection('menu')">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+                App Menu
             </button>
         </nav>
     </aside>
@@ -247,15 +258,55 @@
 
         <!-- Medicine Section -->
         <div id="medicine" class="content-section">
+            <!-- Medicine Management Card -->
             <div class="card">
                 <h2>Medicine & Vitamin Tracker</h2>
                 <p style="margin-bottom: 16px; color: #6b7280;">Manage your medicines and vitamins with time window reminders.</p>
 
-                <div id="medicine-list" style="margin-bottom: 20px;">
-                    <!-- Medicine list will be populated here -->
+                <!-- Tab Navigation -->
+                <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb;">
+                    <button id="tab-medicines" class="tab-btn active" onclick="switchMedicineTab('medicines')">
+                        My Medicines
+                    </button>
+                    <button id="tab-pending" class="tab-btn" onclick="switchMedicineTab('pending')">
+                        Pending Doses
+                    </button>
+                    <button id="tab-skip-history" class="tab-btn" onclick="switchMedicineTab('skip-history')">
+                        Skip History
+                    </button>
+                    <button id="tab-adherence" class="tab-btn" onclick="switchMedicineTab('adherence')">
+                        Adherence Stats
+                    </button>
                 </div>
 
-                <button type="button" class="save-btn" onclick="showAddMedicineForm()">+ Add New Medicine</button>
+                <!-- Medicines List Tab -->
+                <div id="medicine-tab-medicines" class="medicine-tab active">
+                    <div id="medicine-list" style="margin-bottom: 20px;">
+                        <!-- Medicine list will be populated here -->
+                    </div>
+                    <button type="button" class="save-btn" onclick="showAddMedicineForm()">+ Add New Medicine</button>
+                </div>
+
+                <!-- Pending Doses Tab -->
+                <div id="medicine-tab-pending" class="medicine-tab" style="display: none;">
+                    <div id="pending-doses-list">
+                        <!-- Pending doses will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Skip History Tab -->
+                <div id="medicine-tab-skip-history" class="medicine-tab" style="display: none;">
+                    <div id="skip-history-list">
+                        <!-- Skip history will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Adherence Stats Tab -->
+                <div id="medicine-tab-adherence" class="medicine-tab" style="display: none;">
+                    <div id="adherence-stats">
+                        <!-- Adherence stats will be populated here -->
+                    </div>
+                </div>
             </div>
 
             <!-- Add/Edit Medicine Form (hidden by default) -->
@@ -351,6 +402,51 @@
                     <div id="medicine-form-status" class="status-message"></div>
                 </form>
             </div>
+
+            <!-- Skip Reason Modal -->
+            <div id="skip-reason-modal" class="modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
+                <div class="card" style="max-width: 500px; width: 90%; margin: 20px;">
+                    <h2>Skip Medicine Dose</h2>
+                    <p id="skip-medicine-name" style="color: #6b7280; margin-bottom: 16px;"></p>
+
+                    <div class="form-group">
+                        <label>Reason for skipping:</label>
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px; cursor: pointer;">
+                                <input type="radio" name="skip-reason" value="forgot" checked>
+                                <span>Forgot to take it</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px; cursor: pointer;">
+                                <input type="radio" name="skip-reason" value="side_effects">
+                                <span>Experiencing side effects</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px; cursor: pointer;">
+                                <input type="radio" name="skip-reason" value="out_of_stock">
+                                <span>Out of stock</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px; cursor: pointer;">
+                                <input type="radio" name="skip-reason" value="doctor_advised">
+                                <span>Doctor advised to skip</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px; cursor: pointer;">
+                                <input type="radio" name="skip-reason" value="other">
+                                <span>Other reason</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label>Additional Notes (optional):</label>
+                        <textarea id="skip-notes" rows="3" style="width: 100%; padding: 8px; border: 1px solid #e5e7eb; border-radius: 4px; font-family: inherit;"></textarea>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; margin-top: 16px;">
+                        <button type="button" class="save-btn" onclick="confirmSkipMedicine()">Confirm Skip</button>
+                        <button type="button" class="save-btn" onclick="closeSkipReasonModal()" style="background: #6b7280;">Cancel</button>
+                    </div>
+                    <div id="skip-modal-status" class="status-message"></div>
+                </div>
+            </div>
         </div>
 
         <!-- Forbidden Section -->
@@ -368,12 +464,348 @@
             </div>
         </div>
 
-        <!-- Settings Section -->
-        <div id="settings" class="content-section">
+        <!-- Hardware Configuration Section -->
+        <div id="hardware" class="content-section">
+            <div class="card">
+                <h2>Hardware Configuration</h2>
+                <p style="margin-bottom: 16px; color: #6b7280;">Configure hardware detection and input settings for your Pi Zero 2W.</p>
+
+                <form id="hardware-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Hardware Profile</label>
+                            <select id="hw-profile">
+                                <option value="auto">Auto-detect</option>
+                                <option value="touch">Touch Screen</option>
+                                <option value="button">Button Input</option>
+                            </select>
+                            <small style="color: #6b7280; margin-top: 4px;">Auto-detect will probe for touch screen or fall back to button</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Input Mode Override</label>
+                            <select id="hw-input-mode">
+                                <option value="auto">Auto (use profile)</option>
+                                <option value="touch">Force Touch</option>
+                                <option value="button">Force Button</option>
+                            </select>
+                            <small style="color: #6b7280; margin-top: 4px;">Override auto-detected input mode</small>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; font-weight: 600;">Touch Screen Settings</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="hw-touch-enabled" checked>
+                                Touch Screen Enabled
+                            </label>
+                            <small style="color: #6b7280; margin-top: 4px;">Enable touch screen detection and input</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Touch Driver</label>
+                            <input type="text" id="hw-touch-driver" placeholder="cst816" value="cst816">
+                            <small style="color: #6b7280; margin-top: 4px;">Touch controller driver (e.g., cst816, ft6236)</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Interrupt Pin (BCM)</label>
+                            <input type="number" id="hw-touch-int-pin" placeholder="17" value="17">
+                            <small style="color: #6b7280; margin-top: 4px;">GPIO pin for touch interrupt</small>
+                        </div>
+                        <div class="form-group">
+                            <label>I2C Address (hex)</label>
+                            <input type="text" id="hw-touch-i2c" placeholder="0x15" value="0x15">
+                            <small style="color: #6b7280; margin-top: 4px;">Touch controller I2C address</small>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; font-weight: 600;">Button Settings</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Button GPIO Pin (BCM)</label>
+                            <input type="number" id="hw-button-gpio" placeholder="17" value="17">
+                            <small style="color: #6b7280; margin-top: 4px;">GPIO pin for physical button</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Long Press Threshold (ms)</label>
+                            <input type="number" id="hw-button-long-press" placeholder="1000" value="1000">
+                            <small style="color: #6b7280; margin-top: 4px;">Time in milliseconds for long press detection</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Bounce Time (ms)</label>
+                            <input type="number" id="hw-button-bounce" placeholder="200" value="200">
+                            <small style="color: #6b7280; margin-top: 4px;">Debounce time in milliseconds</small>
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="hw-button-pull-up" checked>
+                                Enable Pull-up Resistor
+                            </label>
+                            <small style="color: #6b7280; margin-top: 4px;">Enable internal pull-up resistor</small>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; font-weight: 600;">Display Settings</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Display Model</label>
+                            <select id="hw-display-model">
+                                <option value="waveshare_2in13_v4">Waveshare 2.13" V4</option>
+                                <option value="waveshare_2in13_v3">Waveshare 2.13" V3</option>
+                                <option value="waveshare_2in13_v2">Waveshare 2.13" V2</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="hw-display-has-touch">
+                                Display Has Touch
+                            </label>
+                            <small style="color: #6b7280; margin-top: 4px;">Check if display includes touch capability</small>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; display: flex; gap: 8px;">
+                        <button type="submit" class="save-btn">Save Hardware Configuration</button>
+                        <button type="button" class="save-btn" onclick="detectHardware()" style="background: #10b981;">Auto-Detect Hardware</button>
+                    </div>
+                    <div id="hardware-status" class="status-message"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- System Settings Section -->
+        <div id="system" class="content-section">
             <div class="card">
                 <h2>System Settings</h2>
-                <p>Configuration file: <code>/home/pizero2w/pizero_apps/config.json</code></p>
-                <p style="margin-top: 12px; color: #6b7280;">Changes require restarting the menu service to take effect.</p>
+                <p style="margin-bottom: 16px; color: #6b7280;">Configure WiFi, display, power management, and system options.</p>
+
+                <form id="system-form">
+                    <h3 style="margin-bottom: 12px; font-size: 1.1rem; font-weight: 600;">WiFi Configuration</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>WiFi SSID</label>
+                            <input type="text" id="sys-wifi-ssid" placeholder="Your WiFi Network">
+                            <small style="color: #6b7280; margin-top: 4px;">WiFi network name to connect to</small>
+                        </div>
+                        <div class="form-group">
+                            <label>WiFi Password</label>
+                            <input type="password" id="sys-wifi-password" placeholder="Password">
+                            <small style="color: #6b7280; margin-top: 4px;">Leave blank to keep existing password</small>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; font-weight: 600;">Hotspot Configuration</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="sys-hotspot-enabled">
+                                Enable WiFi Hotspot
+                            </label>
+                            <small style="color: #6b7280; margin-top: 4px;">Create access point if WiFi unavailable</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Hotspot SSID</label>
+                            <input type="text" id="sys-hotspot-ssid" placeholder="PiZero-Hotspot">
+                        </div>
+                        <div class="form-group">
+                            <label>Hotspot Password</label>
+                            <input type="password" id="sys-hotspot-password" placeholder="Min 8 characters">
+                            <small style="color: #6b7280; margin-top: 4px;">Minimum 8 characters for WPA2</small>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; font-weight: 600;">Display Settings</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Display Brightness (%)</label>
+                            <input type="range" id="sys-brightness" min="0" max="100" value="100" oninput="document.getElementById('brightness-value').textContent = this.value + '%'">
+                            <small style="color: #6b7280; margin-top: 4px;">Current: <span id="brightness-value">100%</span></small>
+                        </div>
+                        <div class="form-group">
+                            <label>Display Rotation</label>
+                            <select id="sys-rotation">
+                                <option value="0">0° (Normal)</option>
+                                <option value="90">90° Clockwise</option>
+                                <option value="180">180° (Upside Down)</option>
+                                <option value="270">270° Clockwise</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Refresh Mode</label>
+                            <select id="sys-refresh-mode">
+                                <option value="full">Full Refresh (slower, clearer)</option>
+                                <option value="partial">Partial Refresh (faster)</option>
+                                <option value="auto">Auto (adaptive)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; font-weight: 600;">System Options</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Timezone</label>
+                            <select id="sys-timezone">
+                                <option value="America/New_York">Eastern (ET)</option>
+                                <option value="America/Chicago">Central (CT)</option>
+                                <option value="America/Denver">Mountain (MT)</option>
+                                <option value="America/Los_Angeles">Pacific (PT)</option>
+                                <option value="America/Anchorage">Alaska (AKT)</option>
+                                <option value="Pacific/Honolulu">Hawaii (HST)</option>
+                                <option value="UTC">UTC</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; font-weight: 600;">Power Management</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="sys-auto-sleep">
+                                Enable Auto Sleep
+                            </label>
+                            <small style="color: #6b7280; margin-top: 4px;">Automatically sleep display when inactive</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Sleep Timeout (seconds)</label>
+                            <input type="number" id="sys-sleep-timeout" placeholder="300" value="300" min="60">
+                            <small style="color: #6b7280; margin-top: 4px;">Time of inactivity before sleep</small>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; font-weight: 600;">Monitoring</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="sys-enable-metrics">
+                                Enable Metrics Collection
+                            </label>
+                            <small style="color: #6b7280; margin-top: 4px;">Collect system performance metrics</small>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button type="submit" class="save-btn">Save System Settings</button>
+                    </div>
+                    <div id="system-status" class="status-message"></div>
+                </form>
+
+                <div style="margin-top: 20px; padding: 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 4px;">
+                    <strong>Note:</strong> Changes to WiFi and system settings may require a reboot to take effect.
+                </div>
+            </div>
+        </div>
+
+        <!-- App Menu Configuration Section -->
+        <div id="menu" class="content-section">
+            <div class="card">
+                <h2>App Menu Configuration</h2>
+                <p style="margin-bottom: 16px; color: #6b7280;">Configure which apps are enabled and their display order in the menu.</p>
+
+                <form id="menu-form">
+                    <h3 style="margin-bottom: 12px; font-size: 1.1rem; font-weight: 600;">Applications</h3>
+                    <p style="margin-bottom: 16px; color: #6b7280; font-size: 0.9rem;">Enable/disable apps and set their order in the menu. Lower numbers appear first.</p>
+
+                    <div id="apps-list" style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Medicine App -->
+                        <div class="app-config-item" style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb;">
+                            <input type="checkbox" id="app-medicine-enabled" checked style="width: 20px; height: 20px;">
+                            <div style="flex: 1;">
+                                <input type="text" id="app-medicine-name" value="Medicine Tracker" style="font-weight: 600; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; width: 100%; max-width: 300px;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 0.9rem; color: #6b7280;">Order:</label>
+                                <input type="number" id="app-medicine-order" value="1" min="1" max="10" style="width: 60px; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px;">
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" onclick="moveApp('medicine', 'up')" style="padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; background: white; cursor: pointer;">↑</button>
+                                <button type="button" onclick="moveApp('medicine', 'down')" style="padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; background: white; cursor: pointer;">↓</button>
+                            </div>
+                        </div>
+
+                        <!-- Disney App -->
+                        <div class="app-config-item" style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb;">
+                            <input type="checkbox" id="app-disney-enabled" checked style="width: 20px; height: 20px;">
+                            <div style="flex: 1;">
+                                <input type="text" id="app-disney-name" value="Disney Wait Times" style="font-weight: 600; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; width: 100%; max-width: 300px;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 0.9rem; color: #6b7280;">Order:</label>
+                                <input type="number" id="app-disney-order" value="2" min="1" max="10" style="width: 60px; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px;">
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" onclick="moveApp('disney', 'up')" style="padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; background: white; cursor: pointer;">↑</button>
+                                <button type="button" onclick="moveApp('disney', 'down')" style="padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; background: white; cursor: pointer;">↓</button>
+                            </div>
+                        </div>
+
+                        <!-- Flights App -->
+                        <div class="app-config-item" style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb;">
+                            <input type="checkbox" id="app-flights-enabled" checked style="width: 20px; height: 20px;">
+                            <div style="flex: 1;">
+                                <input type="text" id="app-flights-name" value="Flights Above" style="font-weight: 600; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; width: 100%; max-width: 300px;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 0.9rem; color: #6b7280;">Order:</label>
+                                <input type="number" id="app-flights-order" value="3" min="1" max="10" style="width: 60px; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px;">
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" onclick="moveApp('flights', 'up')" style="padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; background: white; cursor: pointer;">↑</button>
+                                <button type="button" onclick="moveApp('flights', 'down')" style="padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; background: white; cursor: pointer;">↓</button>
+                            </div>
+                        </div>
+
+                        <!-- Forbidden App -->
+                        <div class="app-config-item" style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb;">
+                            <input type="checkbox" id="app-forbidden-enabled" checked style="width: 20px; height: 20px;">
+                            <div style="flex: 1;">
+                                <input type="text" id="app-forbidden-name" value="Forbidden" style="font-weight: 600; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; width: 100%; max-width: 300px;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 0.9rem; color: #6b7280;">Order:</label>
+                                <input type="number" id="app-forbidden-order" value="4" min="1" max="10" style="width: 60px; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px;">
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" onclick="moveApp('forbidden', 'up')" style="padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; background: white; cursor: pointer;">↑</button>
+                                <button type="button" onclick="moveApp('forbidden', 'down')" style="padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; background: white; cursor: pointer;">↓</button>
+                            </div>
+                        </div>
+
+                        <!-- Reboot App -->
+                        <div class="app-config-item" style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb;">
+                            <input type="checkbox" id="app-reboot-enabled" checked style="width: 20px; height: 20px;">
+                            <div style="flex: 1;">
+                                <input type="text" id="app-reboot-name" value="Reboot Device" style="font-weight: 600; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; width: 100%; max-width: 300px;">
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 0.9rem; color: #6b7280;">Order:</label>
+                                <input type="number" id="app-reboot-order" value="5" min="1" max="10" style="width: 60px; padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px;">
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" onclick="moveApp('reboot', 'up')" style="padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; background: white; cursor: pointer;">↑</button>
+                                <button type="button" onclick="moveApp('reboot', 'down')" style="padding: 4px 8px; border: 1px solid #e5e7eb; border-radius: 4px; background: white; cursor: pointer;">↓</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 24px; margin-bottom: 12px; font-size: 1.1rem; font-weight: 600;">Menu Behavior</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Button Hold Time (ms)</label>
+                            <input type="number" id="menu-button-hold" placeholder="1000" value="1000" min="500" max="5000">
+                            <small style="color: #6b7280; margin-top: 4px;">Time to hold button to return to menu (button mode only)</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Scroll Speed (ms per item)</label>
+                            <input type="number" id="menu-scroll-speed" placeholder="200" value="200" min="50" max="1000">
+                            <small style="color: #6b7280; margin-top: 4px;">Delay between menu items when scrolling</small>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <button type="submit" class="save-btn">Save Menu Configuration</button>
+                    </div>
+                    <div id="menu-status" class="status-message"></div>
+                </form>
             </div>
         </div>
     </main>

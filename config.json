@@ -1,6 +1,6 @@
 {
   "weather": {
-    "location": "Rio de Janeiro",
+    "location": "Boston",
     "units": "metric",
     "update_interval": 300,
     "display_format": "detailed",
@@ -115,7 +115,7 @@
     "wifi_password": "",
     "hotspot_enabled": false,
     "hotspot_ssid": "PiZero-Config",
-    "hotspot_password": "raspberry",
+    "hotspot_password": "CHANGE_ME_IN_ENV",
     "display_brightness": 100,
     "timezone": "America/New_York",
     "auto_sleep": false,
